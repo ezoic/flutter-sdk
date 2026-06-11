@@ -28,4 +28,33 @@ void main() {
       expect(EzoicBannerSize.leaderboard.toSizeString(), '728x90');
     });
   });
+
+  group('EzoicReward.fromShowResult', () {
+    test('maps an earned reward', () {
+      final reward = EzoicReward.fromShowResult(
+        {'earned': true, 'type': 'coins', 'amount': 10},
+      );
+      expect(reward, isNotNull);
+      expect(reward!.type, 'coins');
+      expect(reward.amount, 10);
+    });
+
+    test('returns null when not earned', () {
+      expect(
+        EzoicReward.fromShowResult({'earned': false, 'type': '', 'amount': 0}),
+        isNull,
+      );
+    });
+
+    test('returns null for a missing result', () {
+      expect(EzoicReward.fromShowResult(null), isNull);
+    });
+
+    test('defaults missing fields', () {
+      final reward = EzoicReward.fromShowResult({'earned': true});
+      expect(reward, isNotNull);
+      expect(reward!.type, '');
+      expect(reward.amount, 0);
+    });
+  });
 }
