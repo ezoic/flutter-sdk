@@ -85,17 +85,14 @@ class EzoicRewardedAd {
   /// a ready-to-show [EzoicRewardedAd], or throws a [PlatformException] if no
   /// ad could be loaded.
   static Future<EzoicRewardedAd> load(String adUnitIdentifier) async {
-    final ad = EzoicRewardedAd._(adUnitIdentifier);
-    try {
-      await _channel.invokeMethod<void>(
-        'loadRewardedAd',
-        {'adUnitIdentifier': adUnitIdentifier},
-      );
-      return ad;
-    } catch (_) {
-      ad.destroy();
-      rethrow;
-    }
+    // The instance (and its event-channel handler) is only created after the
+    // native load succeeds, so a rejected load can never disturb the handler
+    // of an already-loaded ad sharing the same ad unit id.
+    await _channel.invokeMethod<void>(
+      'loadRewardedAd',
+      {'adUnitIdentifier': adUnitIdentifier},
+    );
+    return EzoicRewardedAd._(adUnitIdentifier);
   }
 
   /// Presents the rewarded ad full-screen. Resolves with the earned

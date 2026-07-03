@@ -57,17 +57,14 @@ class EzoicInterstitialAd {
   /// with a ready-to-show [EzoicInterstitialAd], or throws a
   /// [PlatformException] if no ad could be loaded.
   static Future<EzoicInterstitialAd> load(String adUnitIdentifier) async {
-    final ad = EzoicInterstitialAd._(adUnitIdentifier);
-    try {
-      await _channel.invokeMethod<void>(
-        'loadInterstitialAd',
-        {'adUnitIdentifier': adUnitIdentifier},
-      );
-      return ad;
-    } catch (_) {
-      ad.destroy();
-      rethrow;
-    }
+    // The instance (and its event-channel handler) is only created after the
+    // native load succeeds, so a rejected load can never disturb the handler
+    // of an already-loaded ad sharing the same ad unit id.
+    await _channel.invokeMethod<void>(
+      'loadInterstitialAd',
+      {'adUnitIdentifier': adUnitIdentifier},
+    );
+    return EzoicInterstitialAd._(adUnitIdentifier);
   }
 
   /// Presents the interstitial ad full-screen. Resolves when the ad is
