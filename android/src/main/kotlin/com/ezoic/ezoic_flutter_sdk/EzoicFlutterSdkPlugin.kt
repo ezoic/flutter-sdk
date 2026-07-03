@@ -5,6 +5,8 @@ import android.app.Application
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.ezoic.ads.sdk.adunits.EzoicInterstitialAd
+import com.ezoic.ads.sdk.adunits.EzoicInterstitialAdListenerAdapter
 import com.ezoic.ads.sdk.adunits.EzoicReward
 import com.ezoic.ads.sdk.adunits.EzoicRewardedAd
 import com.ezoic.ads.sdk.adunits.EzoicRewardedAdListenerAdapter
@@ -41,6 +43,19 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     var reward: EzoicReward? = null
   }
 
+  /** Loaded interstitial ads awaiting `show`, keyed by ad unit id. */
+  private val interstitialAds = HashMap<String, EzoicInterstitialAd>()
+
+  /** Per-ad event channels used to surface interstitial callbacks to Dart. */
+  private val interstitialChannels = HashMap<String, MethodChannel>()
+
+  /** In-flight interstitial `show` calls, keyed by ad unit id. */
+  private val pendingInterstitialShows = HashMap<String, InterstitialShow>()
+
+  private class InterstitialShow(val result: MethodChannel.Result) {
+    var settled = false
+  }
+
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     appContext = binding.applicationContext
     messenger = binding.binaryMessenger
@@ -58,6 +73,10 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     rewardedChannels.clear()
     rewardedAds.clear()
     pendingShows.clear()
+    interstitialChannels.values.forEach { it.setMethodCallHandler(null) }
+    interstitialChannels.clear()
+    interstitialAds.clear()
+    pendingInterstitialShows.clear()
   }
 
   // ActivityAware — capture the Activity so rewarded ads can be presented.
@@ -117,6 +136,8 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "trackPageview" -> EzoicAds.instance.trackPageview { success -> result.success(success) }
       "loadRewardedAd" -> handleLoadRewardedAd(call, result)
       "showRewardedAd" -> handleShowRewardedAd(call, result)
+      "loadInterstitialAd" -> handleLoadInterstitialAd(call, result)
+      "showInterstitialAd" -> handleShowInterstitialAd(call, result)
       else -> result.notImplemented()
     }
   }
@@ -212,6 +233,89 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
 
   private fun emit(adUnitIdentifier: String, method: String, args: Any? = null) {
     val channel = rewardedChannels[adUnitIdentifier] ?: return
+    mainHandler.post { channel.invokeMethod(method, args) }
+  }
+
+  private fun handleLoadInterstitialAd(call: MethodCall, result: MethodChannel.Result) {
+    val adUnitIdentifier = call.argument<String>("adUnitIdentifier")
+    val id = adUnitIdentifier?.toIntOrNull()
+    if (adUnitIdentifier == null || id == null) {
+      result.error("EzoicAds", "Invalid adUnitIdentifier: $adUnitIdentifier", null); return
+    }
+    EzoicInterstitialAd.load(appContext, id) { r ->
+      r.onSuccess { ad ->
+        ad.listener = makeInterstitialListener(adUnitIdentifier)
+        interstitialAds[adUnitIdentifier] = ad
+        interstitialChannels.getOrPut(adUnitIdentifier) {
+          MethodChannel(messenger, "com.ezoic/ezoic_interstitial_ad_$adUnitIdentifier")
+        }
+        result.success(null)
+      }.onFailure { e ->
+        result.error("EzoicAds", e.message ?: "Interstitial ad failed to load", e.toString())
+      }
+    }
+  }
+
+  private fun handleShowInterstitialAd(call: MethodCall, result: MethodChannel.Result) {
+    val adUnitIdentifier = call.argument<String>("adUnitIdentifier")
+    val ad = if (adUnitIdentifier != null) interstitialAds[adUnitIdentifier] else null
+    if (adUnitIdentifier == null || ad == null) {
+      result.error("EzoicAds", "Interstitial ad not loaded for $adUnitIdentifier", null); return
+    }
+    val currentActivity = activity
+    if (currentActivity == null) {
+      result.error("EzoicAds", "No current Activity to present the interstitial ad", null); return
+    }
+
+    pendingInterstitialShows[adUnitIdentifier] = InterstitialShow(result)
+    // Native show(activity) has no completion lambda, so the show promise is
+    // settled from the listener (dismiss = resolve, failed-to-show = reject).
+    currentActivity.runOnUiThread {
+      ad.show(currentActivity)
+    }
+  }
+
+  private fun makeInterstitialListener(adUnitIdentifier: String) =
+    object : EzoicInterstitialAdListenerAdapter() {
+      override fun onInterstitialAdShown(interstitialAd: EzoicInterstitialAd) {
+        emitInterstitial(adUnitIdentifier, "onShown")
+      }
+
+      override fun onInterstitialAdFailedToShow(interstitialAd: EzoicInterstitialAd, error: EzoicError) {
+        emitInterstitial(adUnitIdentifier, "onFailedToShow", mapOf("message" to error.message, "code" to error.code))
+        cleanupInterstitial(adUnitIdentifier)
+        val pending = pendingInterstitialShows.remove(adUnitIdentifier)
+        if (pending != null && !pending.settled) {
+          pending.settled = true
+          pending.result.error("EzoicAds", error.message, error.code)
+        }
+      }
+
+      override fun onInterstitialAdImpression(interstitialAd: EzoicInterstitialAd) {
+        emitInterstitial(adUnitIdentifier, "onImpression")
+      }
+
+      override fun onInterstitialAdClicked(interstitialAd: EzoicInterstitialAd) {
+        emitInterstitial(adUnitIdentifier, "onClicked")
+      }
+
+      override fun onInterstitialAdDismissed(interstitialAd: EzoicInterstitialAd) {
+        emitInterstitial(adUnitIdentifier, "onDismissed")
+        val pending = pendingInterstitialShows.remove(adUnitIdentifier)
+        cleanupInterstitial(adUnitIdentifier)
+        if (pending != null && !pending.settled) {
+          pending.settled = true
+          pending.result.success(null)
+        }
+      }
+    }
+
+  private fun cleanupInterstitial(adUnitIdentifier: String) {
+    interstitialAds.remove(adUnitIdentifier)
+  }
+
+  private fun emitInterstitial(adUnitIdentifier: String, method: String, args: Any? = null) {
+    val channel = interstitialChannels[adUnitIdentifier] ?: return
     mainHandler.post { channel.invokeMethod(method, args) }
   }
 }

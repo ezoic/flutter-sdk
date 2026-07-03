@@ -21,6 +21,21 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     init(_ result: @escaping FlutterResult) { self.result = result }
   }
 
+  /// Loaded interstitial ads awaiting `show`, keyed by ad unit id.
+  private var interstitialAds: [Int: EzoicInterstitialAd] = [:]
+
+  /// Per-ad event channels used to surface interstitial callbacks to Dart.
+  private var interstitialChannels: [Int: FlutterMethodChannel] = [:]
+
+  /// In-flight interstitial `show` calls, keyed by ad unit id.
+  private var pendingInterstitialShows: [Int: PendingInterstitialShow] = [:]
+
+  private final class PendingInterstitialShow {
+    let result: FlutterResult
+    var settled = false
+    init(_ result: @escaping FlutterResult) { self.result = result }
+  }
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
       name: "com.ezoic/ezoic_flutter_sdk", binaryMessenger: registrar.messenger())
@@ -74,6 +89,10 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       handleLoadRewardedAd(call, result)
     case "showRewardedAd":
       handleShowRewardedAd(call, result)
+    case "loadInterstitialAd":
+      handleLoadInterstitialAd(call, result)
+    case "showInterstitialAd":
+      handleShowInterstitialAd(call, result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -119,6 +138,48 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
 
   private func emit(_ id: Int, _ method: String, _ args: Any? = nil) {
     rewardedChannels[id]?.invokeMethod(method, arguments: args)
+  }
+
+  private func handleLoadInterstitialAd(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let adUnitIdentifier = args["adUnitIdentifier"] as? String,
+          let id = Int(adUnitIdentifier) else {
+      result(FlutterError(code: "EzoicAds", message: "Invalid adUnitIdentifier.", details: nil))
+      return
+    }
+    EzoicInterstitialAd.load(adUnitIdentifier: id) { [weak self] r in
+      guard let self = self else { return }
+      switch r {
+      case .success(let ad):
+        ad.delegate = self
+        self.interstitialAds[id] = ad
+        if let messenger = self.messenger, self.interstitialChannels[id] == nil {
+          self.interstitialChannels[id] = FlutterMethodChannel(
+            name: "com.ezoic/ezoic_interstitial_ad_\(id)", binaryMessenger: messenger)
+        }
+        result(nil)
+      case .failure(let e):
+        result(FlutterError(code: "EzoicAds", message: e.localizedDescription, details: e.code))
+      }
+    }
+  }
+
+  private func handleShowInterstitialAd(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let adUnitIdentifier = args["adUnitIdentifier"] as? String,
+          let id = Int(adUnitIdentifier), let ad = interstitialAds[id] else {
+      result(FlutterError(code: "EzoicAds", message: "Interstitial ad not loaded.", details: nil))
+      return
+    }
+    pendingInterstitialShows[id] = PendingInterstitialShow(result)
+    // Native show(from:) has no completion handler, so the show promise is
+    // settled from the delegate (dismiss = resolve, failed-to-present = reject).
+    // Presenting from nil lets GMA use the application's top view controller.
+    ad.show(from: nil)
+  }
+
+  private func emitInterstitial(_ id: Int, _ method: String, _ args: Any? = nil) {
+    interstitialChannels[id]?.invokeMethod(method, arguments: args)
   }
 }
 
@@ -166,6 +227,44 @@ extension EzoicFlutterSdkPlugin: EzoicRewardedAdDelegate {
         "type": reward?.type ?? "",
         "amount": reward?.amount ?? 0
       ])
+    }
+  }
+}
+
+// MARK: - EzoicInterstitialAdDelegate
+
+extension EzoicFlutterSdkPlugin: EzoicInterstitialAdDelegate {
+
+  public func interstitialAdDidPresent(_ interstitialAd: EzoicInterstitialAd) {
+    emitInterstitial(interstitialAd.adUnitIdentifier, "onShown")
+  }
+
+  public func interstitialAd(_ interstitialAd: EzoicInterstitialAd, didFailToPresentWithError error: EzoicError) {
+    let id = interstitialAd.adUnitIdentifier
+    emitInterstitial(id, "onFailedToShow", ["message": error.localizedDescription, "code": error.code])
+    interstitialAds.removeValue(forKey: id)
+    if let pending = pendingInterstitialShows.removeValue(forKey: id), !pending.settled {
+      pending.settled = true
+      pending.result(FlutterError(code: "EzoicAds", message: error.localizedDescription, details: error.code))
+    }
+  }
+
+  public func interstitialAdDidRecordImpression(_ interstitialAd: EzoicInterstitialAd) {
+    emitInterstitial(interstitialAd.adUnitIdentifier, "onImpression")
+  }
+
+  public func interstitialAdDidRecordClick(_ interstitialAd: EzoicInterstitialAd) {
+    emitInterstitial(interstitialAd.adUnitIdentifier, "onClicked")
+  }
+
+  public func interstitialAdDidDismiss(_ interstitialAd: EzoicInterstitialAd) {
+    let id = interstitialAd.adUnitIdentifier
+    emitInterstitial(id, "onDismissed")
+    let pending = pendingInterstitialShows.removeValue(forKey: id)
+    interstitialAds.removeValue(forKey: id)
+    if let pending = pending, !pending.settled {
+      pending.settled = true
+      pending.result(nil)
     }
   }
 }

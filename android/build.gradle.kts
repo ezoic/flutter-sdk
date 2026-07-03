@@ -72,7 +72,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.ezoic.sdk:ezoic-ads-sdk:1.1.0")
+    implementation("com.ezoic.sdk:ezoic-ads-sdk:1.2.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }
