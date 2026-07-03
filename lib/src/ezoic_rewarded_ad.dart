@@ -126,6 +126,8 @@ class EzoicRewardedAd {
           args['message'] as String? ?? 'Unknown error',
           (args['code'] as num?)?.toInt() ?? 0,
         ));
+        // Failure to show is terminal — the native ad is single-use.
+        destroy();
         break;
       case 'onImpression':
         onImpression?.call();

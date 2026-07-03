@@ -56,6 +56,12 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     var settled = false
   }
 
+  /** Ad unit ids with an in-flight rewarded `load`. */
+  private val loadingRewarded = HashSet<String>()
+
+  /** Ad unit ids with an in-flight interstitial `load`. */
+  private val loadingInterstitial = HashSet<String>()
+
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     appContext = binding.applicationContext
     messenger = binding.binaryMessenger
@@ -73,10 +79,12 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     rewardedChannels.clear()
     rewardedAds.clear()
     pendingShows.clear()
+    loadingRewarded.clear()
     interstitialChannels.values.forEach { it.setMethodCallHandler(null) }
     interstitialChannels.clear()
     interstitialAds.clear()
     pendingInterstitialShows.clear()
+    loadingInterstitial.clear()
   }
 
   // ActivityAware — capture the Activity so rewarded ads can be presented.
@@ -148,7 +156,13 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     if (adUnitIdentifier == null || id == null) {
       result.error("EzoicAds", "Invalid adUnitIdentifier: $adUnitIdentifier", null); return
     }
+    if (rewardedAds.containsKey(adUnitIdentifier) || loadingRewarded.contains(adUnitIdentifier)) {
+      result.error(
+        "EzoicAds", "An ad is already loaded/loading for ad unit $adUnitIdentifier", null); return
+    }
+    loadingRewarded.add(adUnitIdentifier)
     EzoicRewardedAd.load(appContext, id) { r ->
+      loadingRewarded.remove(adUnitIdentifier)
       r.onSuccess { ad ->
         ad.listener = makeListener(adUnitIdentifier)
         rewardedAds[adUnitIdentifier] = ad
@@ -167,6 +181,10 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     val ad = if (adUnitIdentifier != null) rewardedAds[adUnitIdentifier] else null
     if (adUnitIdentifier == null || ad == null) {
       result.error("EzoicAds", "Rewarded ad not loaded for $adUnitIdentifier", null); return
+    }
+    if (pendingShows.containsKey(adUnitIdentifier)) {
+      result.error(
+        "EzoicAds", "A show is already in progress for ad unit $adUnitIdentifier", null); return
     }
     val currentActivity = activity
     if (currentActivity == null) {
@@ -242,7 +260,13 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     if (adUnitIdentifier == null || id == null) {
       result.error("EzoicAds", "Invalid adUnitIdentifier: $adUnitIdentifier", null); return
     }
+    if (interstitialAds.containsKey(adUnitIdentifier) || loadingInterstitial.contains(adUnitIdentifier)) {
+      result.error(
+        "EzoicAds", "An ad is already loaded/loading for ad unit $adUnitIdentifier", null); return
+    }
+    loadingInterstitial.add(adUnitIdentifier)
     EzoicInterstitialAd.load(appContext, id) { r ->
+      loadingInterstitial.remove(adUnitIdentifier)
       r.onSuccess { ad ->
         ad.listener = makeInterstitialListener(adUnitIdentifier)
         interstitialAds[adUnitIdentifier] = ad
@@ -261,6 +285,10 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     val ad = if (adUnitIdentifier != null) interstitialAds[adUnitIdentifier] else null
     if (adUnitIdentifier == null || ad == null) {
       result.error("EzoicAds", "Interstitial ad not loaded for $adUnitIdentifier", null); return
+    }
+    if (pendingInterstitialShows.containsKey(adUnitIdentifier)) {
+      result.error(
+        "EzoicAds", "A show is already in progress for ad unit $adUnitIdentifier", null); return
     }
     val currentActivity = activity
     if (currentActivity == null) {

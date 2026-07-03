@@ -17,11 +17,11 @@ void main() {
     messenger.setMockMethodCallHandler(mainChannel, handler);
   }
 
-  // Delivers an event on a per-ad interstitial event channel, mimicking the
-  // native plugin invoking the Dart-side event handler.
+  // Delivers an event on a per-ad rewarded event channel, mimicking the native
+  // plugin invoking the Dart-side event handler.
   Future<void> sendEvent(String id, String method, [dynamic args]) async {
     await messenger.handlePlatformMessage(
-      'com.ezoic/ezoic_interstitial_ad_$id',
+      'com.ezoic/ezoic_rewarded_ad_$id',
       codec.encodeMethodCall(MethodCall(method, args)),
       (ByteData? _) {},
     );
@@ -31,23 +31,20 @@ void main() {
     messenger.setMockMethodCallHandler(mainChannel, null);
   });
 
-  group('EzoicInterstitialAd.load', () {
-    test('sends loadInterstitialAd with the ad unit identifier', () async {
+  group('EzoicRewardedAd.load', () {
+    test('sends loadRewardedAd with the ad unit identifier', () async {
       final calls = <MethodCall>[];
       setMainHandler((call) async {
         calls.add(call);
         return null;
       });
 
-      final ad = await EzoicInterstitialAd.load('123');
+      final ad = await EzoicRewardedAd.load('123');
       addTearDown(ad.destroy);
 
       expect(calls, hasLength(1));
-      expect(calls.single.method, 'loadInterstitialAd');
-      expect(
-        (calls.single.arguments as Map)['adUnitIdentifier'],
-        '123',
-      );
+      expect(calls.single.method, 'loadRewardedAd');
+      expect((calls.single.arguments as Map)['adUnitIdentifier'], '123');
     });
 
     test('rethrows when the native load fails', () async {
@@ -56,82 +53,68 @@ void main() {
       });
 
       await expectLater(
-        EzoicInterstitialAd.load('123'),
+        EzoicRewardedAd.load('123'),
         throwsA(isA<PlatformException>()),
       );
     });
   });
 
-  group('EzoicInterstitialAd.show', () {
-    test('resolves when a dismissed event is delivered and auto-destroys',
-        () async {
-      var dismissed = false;
-      var shownAfterDismiss = false;
-
+  group('EzoicRewardedAd.show', () {
+    test('resolves the earned reward on dismiss and auto-destroys', () async {
       setMainHandler((call) async {
-        if (call.method == 'showInterstitialAd') {
+        if (call.method == 'showRewardedAd') {
+          await sendEvent('123', 'onUserEarnedReward', {'type': 'coins', 'amount': 5});
           await sendEvent('123', 'onDismissed');
+          return {'earned': true, 'type': 'coins', 'amount': 5};
         }
         return null;
       });
 
-      final ad = await EzoicInterstitialAd.load('123');
-      ad.onDismissed = () => dismissed = true;
+      final ad = await EzoicRewardedAd.load('123');
+      var shownAfterDismiss = false;
       ad.onShown = () => shownAfterDismiss = true;
 
-      await ad.show();
-      expect(dismissed, isTrue);
+      final reward = await ad.show();
+      expect(reward, isNotNull);
+      expect(reward!.type, 'coins');
+      expect(reward.amount, 5);
 
-      // Auto-destroy on dismiss detaches the event handler: further events are
-      // dropped rather than routed to callbacks.
+      // Auto-destroy on dismiss detaches the event handler.
       await sendEvent('123', 'onShown');
       expect(shownAfterDismiss, isFalse);
     });
 
-    test('throws EzoicInterstitialAdError on failedToShow', () async {
-      EzoicInterstitialAdError? callbackError;
-
+    test('throws and auto-destroys on failedToShow', () async {
       setMainHandler((call) async {
-        if (call.method == 'showInterstitialAd') {
-          await sendEvent('123', 'onFailedToShow', {
-            'message': 'boom',
-            'code': 7,
-          });
-          throw PlatformException(
-            code: 'EzoicAds',
-            message: 'boom',
-            details: 7,
-          );
+        if (call.method == 'showRewardedAd') {
+          await sendEvent('123', 'onFailedToShow', {'message': 'boom', 'code': 7});
+          throw PlatformException(code: 'EzoicAds', message: 'boom');
         }
         return null;
       });
 
-      final ad = await EzoicInterstitialAd.load('123');
-      addTearDown(ad.destroy);
-      ad.onFailedToShow = (error) => callbackError = error;
+      final ad = await EzoicRewardedAd.load('123');
+      EzoicRewardedAdError? failed;
+      var shownAfterFail = false;
+      ad.onFailedToShow = (error) => failed = error;
+      ad.onShown = () => shownAfterFail = true;
 
-      EzoicInterstitialAdError? thrown;
-      try {
-        await ad.show();
-      } on EzoicInterstitialAdError catch (e) {
-        thrown = e;
-      }
+      await expectLater(ad.show(), throwsA(isA<PlatformException>()));
+      expect(failed, isNotNull);
+      expect(failed!.message, 'boom');
+      expect(failed!.code, 7);
 
-      expect(thrown, isNotNull);
-      expect(thrown!.message, 'boom');
-      expect(thrown.code, 7);
-
-      expect(callbackError, isNotNull);
-      expect(callbackError!.message, 'boom');
-      expect(callbackError!.code, 7);
+      // Auto-destroy on failedToShow detaches the handler: further events drop.
+      await sendEvent('123', 'onShown');
+      expect(shownAfterFail, isFalse);
     });
   });
 
-  group('EzoicInterstitialAd double-load / double-show guards', () {
+  group('EzoicRewardedAd double-load / double-show guards', () {
     test('rejects a second load for an already loaded/loading id', () async {
       final loaded = <String>{};
       setMainHandler((call) async {
-        if (call.method == 'loadInterstitialAd') {
+        if (call.method == 'loadRewardedAd') {
           final id = (call.arguments as Map)['adUnitIdentifier'] as String;
           if (!loaded.add(id)) {
             throw PlatformException(
@@ -144,11 +127,11 @@ void main() {
         return null;
       });
 
-      final ad = await EzoicInterstitialAd.load('777');
+      final ad = await EzoicRewardedAd.load('777');
       addTearDown(ad.destroy);
 
       await expectLater(
-        EzoicInterstitialAd.load('777'),
+        EzoicRewardedAd.load('777'),
         throwsA(isA<PlatformException>()),
       );
     });
@@ -158,9 +141,9 @@ void main() {
       Completer<void>? firstGate;
       setMainHandler((call) async {
         switch (call.method) {
-          case 'loadInterstitialAd':
+          case 'loadRewardedAd':
             return null;
-          case 'showInterstitialAd':
+          case 'showRewardedAd':
             if (firstGate != null) {
               throw PlatformException(
                 code: 'EzoicAds',
@@ -171,70 +154,54 @@ void main() {
             firstGate = gate;
             await gate.future;
             await sendEvent('123', 'onDismissed');
-            return null;
+            return {'earned': false, 'type': '', 'amount': 0};
         }
         return null;
       });
 
-      final ad = await EzoicInterstitialAd.load('123');
+      final ad = await EzoicRewardedAd.load('123');
       final first = ad.show();
       // Let the first show handler register its in-flight gate.
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      await expectLater(ad.show(), throwsA(isA<EzoicInterstitialAdError>()));
+      await expectLater(ad.show(), throwsA(isA<PlatformException>()));
 
       firstGate!.complete();
-      await first; // resolves normally, unaffected by the rejected second call
+      // First resolves normally (dismissed without earning => null reward).
+      expect(await first, isNull);
     });
   });
 
-  group('EzoicInterstitialAd events', () {
-    test('auto-destroys on failedToShow and drops later events', () async {
-      setMainHandler((call) async {
-        if (call.method == 'showInterstitialAd') {
-          await sendEvent('123', 'onFailedToShow', {'message': 'boom', 'code': 7});
-          throw PlatformException(code: 'EzoicAds', message: 'boom', details: 7);
-        }
-        return null;
-      });
-
-      final ad = await EzoicInterstitialAd.load('123');
-      var failed = false;
-      var shownAfterFail = false;
-      ad.onFailedToShow = (_) => failed = true;
-      ad.onShown = () => shownAfterFail = true;
-
-      await expectLater(ad.show(), throwsA(isA<EzoicInterstitialAdError>()));
-      expect(failed, isTrue);
-
-      // Auto-destroy on failedToShow detaches the handler: further events drop.
-      await sendEvent('123', 'onShown');
-      expect(shownAfterFail, isFalse);
-    });
-
+  group('EzoicRewardedAd events', () {
     test('routes each lifecycle event to its callback', () async {
       setMainHandler((call) async => null);
-      final ad = await EzoicInterstitialAd.load('456');
+      final ad = await EzoicRewardedAd.load('456');
       addTearDown(ad.destroy);
 
       var shown = false;
       var impression = false;
       var clicked = false;
-      EzoicInterstitialAdError? failed;
+      EzoicReward? earned;
+      EzoicRewardedAdError? failed;
 
       ad.onShown = () => shown = true;
       ad.onImpression = () => impression = true;
       ad.onClicked = () => clicked = true;
+      ad.onUserEarnedReward = (reward) => earned = reward;
       ad.onFailedToShow = (error) => failed = error;
 
       await sendEvent('456', 'onShown');
       await sendEvent('456', 'onImpression');
       await sendEvent('456', 'onClicked');
+      await sendEvent('456', 'onUserEarnedReward', {'type': 'gems', 'amount': 3});
       await sendEvent('456', 'onFailedToShow', {'message': 'x', 'code': 3});
 
       expect(shown, isTrue);
       expect(impression, isTrue);
       expect(clicked, isTrue);
+      expect(earned, isNotNull);
+      expect(earned!.type, 'gems');
+      expect(earned!.amount, 3);
       expect(failed, isNotNull);
       expect(failed!.code, 3);
     });

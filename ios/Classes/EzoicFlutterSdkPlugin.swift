@@ -36,6 +36,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     init(_ result: @escaping FlutterResult) { self.result = result }
   }
 
+  /// Ad unit ids with an in-flight rewarded `load`.
+  private var loadingRewarded: Set<Int> = []
+
+  /// Ad unit ids with an in-flight interstitial `load`.
+  private var loadingInterstitial: Set<Int> = []
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
       name: "com.ezoic/ezoic_flutter_sdk", binaryMessenger: registrar.messenger())
@@ -105,8 +111,16 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       result(FlutterError(code: "EzoicAds", message: "Invalid adUnitIdentifier.", details: nil))
       return
     }
+    if rewardedAds[id] != nil || loadingRewarded.contains(id) {
+      result(FlutterError(code: "EzoicAds",
+                          message: "An ad is already loaded/loading for ad unit \(adUnitIdentifier)",
+                          details: nil))
+      return
+    }
+    loadingRewarded.insert(id)
     EzoicRewardedAd.load(adUnitIdentifier: id) { [weak self] r in
       guard let self = self else { return }
+      self.loadingRewarded.remove(id)
       switch r {
       case .success(let ad):
         ad.delegate = self
@@ -129,6 +143,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       result(FlutterError(code: "EzoicAds", message: "Rewarded ad not loaded.", details: nil))
       return
     }
+    if pendingShows[id] != nil {
+      result(FlutterError(code: "EzoicAds",
+                          message: "A show is already in progress for ad unit \(adUnitIdentifier)",
+                          details: nil))
+      return
+    }
     pendingShows[id] = PendingRewardShow(result)
     // Presenting from nil lets GMA use the application's top view controller.
     ad.show(from: nil) { [weak self] reward in
@@ -147,8 +167,16 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       result(FlutterError(code: "EzoicAds", message: "Invalid adUnitIdentifier.", details: nil))
       return
     }
+    if interstitialAds[id] != nil || loadingInterstitial.contains(id) {
+      result(FlutterError(code: "EzoicAds",
+                          message: "An ad is already loaded/loading for ad unit \(adUnitIdentifier)",
+                          details: nil))
+      return
+    }
+    loadingInterstitial.insert(id)
     EzoicInterstitialAd.load(adUnitIdentifier: id) { [weak self] r in
       guard let self = self else { return }
+      self.loadingInterstitial.remove(id)
       switch r {
       case .success(let ad):
         ad.delegate = self
@@ -169,6 +197,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
           let adUnitIdentifier = args["adUnitIdentifier"] as? String,
           let id = Int(adUnitIdentifier), let ad = interstitialAds[id] else {
       result(FlutterError(code: "EzoicAds", message: "Interstitial ad not loaded.", details: nil))
+      return
+    }
+    if pendingInterstitialShows[id] != nil {
+      result(FlutterError(code: "EzoicAds",
+                          message: "A show is already in progress for ad unit \(adUnitIdentifier)",
+                          details: nil))
       return
     }
     pendingInterstitialShows[id] = PendingInterstitialShow(result)
