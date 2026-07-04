@@ -51,6 +51,9 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
 
     let factory = EzoicBannerViewFactory(messenger: registrar.messenger())
     registrar.register(factory, withId: "com.ezoic/ezoic_banner_view")
+
+    let nativeFactory = EzoicNativeAdViewFactory(messenger: registrar.messenger())
+    registrar.register(nativeFactory, withId: "com.ezoic/ezoic_native_ad_view")
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {

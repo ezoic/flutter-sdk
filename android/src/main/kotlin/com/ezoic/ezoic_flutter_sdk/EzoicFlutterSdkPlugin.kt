@@ -71,6 +71,10 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "com.ezoic/ezoic_banner_view",
       EzoicBannerViewFactory(messenger)
     )
+    binding.platformViewRegistry.registerViewFactory(
+      "com.ezoic/ezoic_native_ad_view",
+      EzoicNativeAdViewFactory(messenger)
+    )
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
