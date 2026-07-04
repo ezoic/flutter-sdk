@@ -42,6 +42,22 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
   /// Ad unit ids with an in-flight interstitial `load`.
   private var loadingInterstitial: Set<Int> = []
 
+  /// Live instream controllers, keyed by ad unit id. The plugin RETAINS these
+  /// because the SDK delegate is weak and the plugin object is the delegate;
+  /// instream is multi-use, so a repeat load reuses the existing controller.
+  private var instreamAds: [Int: EzoicInstreamAd] = [:]
+
+  /// In-flight instream `load` calls, keyed by ad unit id. Doubles as the
+  /// overlapping-load guard (the native load silently no-ops while loading,
+  /// which would otherwise hang the Dart future).
+  private var pendingInstreamLoads: [Int: PendingInstreamLoad] = [:]
+
+  private final class PendingInstreamLoad {
+    let result: FlutterResult
+    var settled = false
+    init(_ result: @escaping FlutterResult) { self.result = result }
+  }
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
       name: "com.ezoic/ezoic_flutter_sdk", binaryMessenger: registrar.messenger())
@@ -54,6 +70,9 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
 
     let nativeFactory = EzoicNativeAdViewFactory(messenger: registrar.messenger())
     registrar.register(nativeFactory, withId: "com.ezoic/ezoic_native_ad_view")
+
+    let outstreamFactory = EzoicOutstreamAdViewFactory(messenger: registrar.messenger())
+    registrar.register(outstreamFactory, withId: "com.ezoic/ezoic_outstream_ad_view")
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -102,6 +121,14 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       handleLoadInterstitialAd(call, result)
     case "showInterstitialAd":
       handleShowInterstitialAd(call, result)
+    case "loadInstreamAd":
+      handleLoadInstreamAd(call, result)
+    case "getInstreamNextAdTagUrl":
+      handleGetInstreamNextAdTagUrl(call, result)
+    case "reportInstreamImpression":
+      handleReportInstreamImpression(call, result)
+    case "destroyInstreamAd":
+      handleDestroyInstreamAd(call, result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -218,6 +245,80 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
   private func emitInterstitial(_ id: Int, _ method: String, _ args: Any? = nil) {
     interstitialChannels[id]?.invokeMethod(method, arguments: args)
   }
+
+  private func handleLoadInstreamAd(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let adUnitIdentifier = args["adUnitIdentifier"] as? String,
+          let id = Int(adUnitIdentifier) else {
+      result(FlutterError(code: "EzoicAds", message: "Invalid adUnitIdentifier.", details: nil))
+      return
+    }
+    // Reject overlapping loads for this ad unit: the native load silently
+    // no-ops while loading, which would hang the Dart future.
+    if pendingInstreamLoads[id] != nil {
+      result(FlutterError(code: "EzoicAds",
+                          message: "An instream ad is already loading for ad unit \(adUnitIdentifier)",
+                          details: nil))
+      return
+    }
+    let contentUrl = args["contentUrl"] as? String
+
+    // Create-or-reuse: instream is multi-use, so a repeat load on the same id
+    // reuses the existing native controller (preserving its tag state).
+    let ad: EzoicInstreamAd
+    if let existing = instreamAds[id] {
+      ad = existing
+    } else {
+      ad = EzoicInstreamAd(adUnitId: id)
+      instreamAds[id] = ad
+    }
+
+    // Register the pending holder BEFORE calling load: early validation
+    // failures deliver the delegate callback synchronously.
+    pendingInstreamLoads[id] = PendingInstreamLoad(result)
+    ad.load(contentUrl: contentUrl, delegate: self)
+  }
+
+  private func handleGetInstreamNextAdTagUrl(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let adUnitIdentifier = args["adUnitIdentifier"] as? String,
+          let id = Int(adUnitIdentifier) else {
+      result(FlutterError(code: "EzoicAds", message: "Invalid adUnitIdentifier.", details: nil))
+      return
+    }
+    result(instreamAds[id]?.getNextAdTagUrl())
+  }
+
+  private func handleReportInstreamImpression(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let adUnitIdentifier = args["adUnitIdentifier"] as? String,
+          let id = Int(adUnitIdentifier) else {
+      result(FlutterError(code: "EzoicAds", message: "Invalid adUnitIdentifier.", details: nil))
+      return
+    }
+    // revenueUsd may arrive as an integer NSNumber over the codec when whole;
+    // unwrap via NSNumber and pass the SDK's optional Double.
+    let revenueUsd = (args["revenueUsd"] as? NSNumber)?.doubleValue
+    instreamAds[id]?.reportImpression(revenueUsd: revenueUsd)
+    result(nil)
+  }
+
+  private func handleDestroyInstreamAd(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let adUnitIdentifier = args["adUnitIdentifier"] as? String,
+          let id = Int(adUnitIdentifier) else {
+      result(FlutterError(code: "EzoicAds", message: "Invalid adUnitIdentifier.", details: nil))
+      return
+    }
+    // The native SDKs ignore load callbacks once an ad is destroyed, so a
+    // pending load's Flutter result must be settled here or it hangs forever.
+    if let pending = pendingInstreamLoads.removeValue(forKey: id), !pending.settled {
+      pending.settled = true
+      pending.result(FlutterError(code: "EzoicAds", message: "Instream ad was destroyed while loading", details: nil))
+    }
+    instreamAds.removeValue(forKey: id)?.destroy()
+    result(nil)
+  }
 }
 
 // MARK: - EzoicRewardedAdDelegate
@@ -302,6 +403,27 @@ extension EzoicFlutterSdkPlugin: EzoicInterstitialAdDelegate {
     if let pending = pending, !pending.settled {
       pending.settled = true
       pending.result(nil)
+    }
+  }
+}
+
+// MARK: - EzoicInstreamAdDelegate
+
+extension EzoicFlutterSdkPlugin: EzoicInstreamAdDelegate {
+
+  public func instreamAd(_ instreamAd: EzoicInstreamAd, didReceiveAdTag adTagUrl: String) {
+    let id = instreamAd.adUnitId
+    if let pending = pendingInstreamLoads.removeValue(forKey: id), !pending.settled {
+      pending.settled = true
+      pending.result(adTagUrl)
+    }
+  }
+
+  public func instreamAd(_ instreamAd: EzoicInstreamAd, didFailToLoadWithError error: EzoicError) {
+    let id = instreamAd.adUnitId
+    if let pending = pendingInstreamLoads.removeValue(forKey: id), !pending.settled {
+      pending.settled = true
+      pending.result(FlutterError(code: "EzoicAds", message: error.localizedDescription, details: error.code))
     }
   }
 }

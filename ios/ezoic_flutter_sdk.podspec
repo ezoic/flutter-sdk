@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'ezoic_flutter_sdk'
-  s.version          = '1.3.0'
+  s.version          = '1.4.0'
   s.summary          = 'Ezoic Ads SDK for Flutter (Prebid + Google Ad Manager banner, native, interstitial and rewarded ads).'
   s.description      = <<-DESC
 Flutter plugin wrapping the native Ezoic Ads SDK. The iOS implementation
@@ -17,7 +17,7 @@ module as `EzoicAdsSDKBinary`.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.dependency 'EzoicAdsSDK', '~> 1.3'
+  s.dependency 'EzoicAdsSDK', '~> 1.4'
   s.dependency 'Google-Mobile-Ads-SDK', '~> 12.0'
   s.platform = :ios, '14.0'
 

@@ -5,6 +5,8 @@ import android.app.Application
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.ezoic.ads.sdk.adunits.EzoicInstreamAd
+import com.ezoic.ads.sdk.adunits.EzoicInstreamAdListener
 import com.ezoic.ads.sdk.adunits.EzoicInterstitialAd
 import com.ezoic.ads.sdk.adunits.EzoicInterstitialAdListenerAdapter
 import com.ezoic.ads.sdk.adunits.EzoicReward
@@ -62,6 +64,22 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
   /** Ad unit ids with an in-flight interstitial `load`. */
   private val loadingInterstitial = HashSet<String>()
 
+  /** Live instream controllers, keyed by ad unit id. Multi-use — reused across loads. */
+  private val instreamAds = HashMap<Int, EzoicInstreamAd>()
+
+  /**
+   * In-flight instream `load` calls, keyed by ad unit id. The native load
+   * silently no-ops while loading, which would hang the Dart future, so an
+   * overlapping load is rejected here instead. Also lets `destroyInstreamAd`
+   * settle a pending load's result: the native SDKs ignore callbacks for a
+   * destroyed ad, so without this the Dart `load()` future would hang forever.
+   */
+  private val loadingInstream = HashMap<Int, InstreamLoad>()
+
+  private class InstreamLoad(val result: MethodChannel.Result) {
+    var settled = false
+  }
+
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     appContext = binding.applicationContext
     messenger = binding.binaryMessenger
@@ -74,6 +92,10 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     binding.platformViewRegistry.registerViewFactory(
       "com.ezoic/ezoic_native_ad_view",
       EzoicNativeAdViewFactory(messenger)
+    )
+    binding.platformViewRegistry.registerViewFactory(
+      "com.ezoic/ezoic_outstream_ad_view",
+      EzoicOutstreamAdViewFactory(messenger)
     )
   }
 
@@ -89,6 +111,15 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     interstitialAds.clear()
     pendingInterstitialShows.clear()
     loadingInterstitial.clear()
+    loadingInstream.values.forEach { holder ->
+      if (!holder.settled) {
+        holder.settled = true
+        holder.result.error("EzoicAds", "Engine detached while an instream ad was loading", null)
+      }
+    }
+    instreamAds.values.forEach { it.destroy() }
+    instreamAds.clear()
+    loadingInstream.clear()
   }
 
   // ActivityAware — capture the Activity so rewarded ads can be presented.
@@ -150,6 +181,10 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "showRewardedAd" -> handleShowRewardedAd(call, result)
       "loadInterstitialAd" -> handleLoadInterstitialAd(call, result)
       "showInterstitialAd" -> handleShowInterstitialAd(call, result)
+      "loadInstreamAd" -> handleLoadInstreamAd(call, result)
+      "getInstreamNextAdTagUrl" -> handleGetInstreamNextAdTagUrl(call, result)
+      "reportInstreamImpression" -> handleReportInstreamImpression(call, result)
+      "destroyInstreamAd" -> handleDestroyInstreamAd(call, result)
       else -> result.notImplemented()
     }
   }
@@ -349,5 +384,85 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
   private fun emitInterstitial(adUnitIdentifier: String, method: String, args: Any? = null) {
     val channel = interstitialChannels[adUnitIdentifier] ?: return
     mainHandler.post { channel.invokeMethod(method, args) }
+  }
+
+  private fun handleLoadInstreamAd(call: MethodCall, result: MethodChannel.Result) {
+    val adUnitIdentifier = call.argument<String>("adUnitIdentifier")
+    val id = adUnitIdentifier?.toIntOrNull()
+    if (adUnitIdentifier == null || id == null) {
+      result.error("EzoicAds", "Invalid adUnitIdentifier: $adUnitIdentifier", null); return
+    }
+    // Reject overlapping loads for this ad unit: the native load silently
+    // no-ops while loading (both a second load on the same instance and a load
+    // on a fresh Dart instance sharing the id), which would hang the future.
+    if (loadingInstream.containsKey(id)) {
+      result.error(
+        "EzoicAds", "An instream ad is already loading for ad unit $adUnitIdentifier", null); return
+    }
+    val contentUrl = call.argument<String>("contentUrl")
+
+    // Create-or-reuse: instream is multi-use, so a repeat load on the same id
+    // reuses the existing native controller (preserving its tag state).
+    val ad = instreamAds.getOrPut(id) { EzoicInstreamAd(id) }
+
+    val holder = InstreamLoad(result)
+    loadingInstream[id] = holder
+    ad.load(appContext, contentUrl, object : EzoicInstreamAdListener {
+      override fun onAdTagReady(adTagUrl: String) {
+        mainHandler.post {
+          if (!holder.settled) {
+            holder.settled = true
+            loadingInstream.remove(id)
+            holder.result.success(adTagUrl)
+          }
+        }
+      }
+
+      override fun onAdFailedToLoad(error: EzoicError) {
+        mainHandler.post {
+          if (!holder.settled) {
+            holder.settled = true
+            loadingInstream.remove(id)
+            holder.result.error("EzoicAds", error.message, error.code)
+          }
+        }
+      }
+    })
+  }
+
+  private fun handleGetInstreamNextAdTagUrl(call: MethodCall, result: MethodChannel.Result) {
+    val id = call.argument<String>("adUnitIdentifier")?.toIntOrNull()
+    if (id == null) {
+      result.error("EzoicAds", "Invalid adUnitIdentifier", null); return
+    }
+    result.success(instreamAds[id]?.getNextAdTagUrl())
+  }
+
+  private fun handleReportInstreamImpression(call: MethodCall, result: MethodChannel.Result) {
+    val id = call.argument<String>("adUnitIdentifier")?.toIntOrNull()
+    if (id == null) {
+      result.error("EzoicAds", "Invalid adUnitIdentifier", null); return
+    }
+    // revenueUsd may arrive as an Int over the codec when whole; take it as a
+    // Number and coerce to the native Double? the SDK expects.
+    val revenueUsd = call.argument<Number>("revenueUsd")?.toDouble()
+    instreamAds[id]?.reportImpression(revenueUsd)
+    result.success(null)
+  }
+
+  private fun handleDestroyInstreamAd(call: MethodCall, result: MethodChannel.Result) {
+    val id = call.argument<String>("adUnitIdentifier")?.toIntOrNull()
+    if (id == null) {
+      result.error("EzoicAds", "Invalid adUnitIdentifier", null); return
+    }
+    // The native SDKs ignore load callbacks once an ad is destroyed, so a
+    // pending load's Flutter result must be settled here or it hangs forever.
+    val pending = loadingInstream.remove(id)
+    if (pending != null && !pending.settled) {
+      pending.settled = true
+      pending.result.error("EzoicAds", "Instream ad was destroyed while loading", null)
+    }
+    instreamAds.remove(id)?.destroy()
+    result.success(null)
   }
 }
