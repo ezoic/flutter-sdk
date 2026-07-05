@@ -1,3 +1,8 @@
+## 1.5.0
+
+* Amazon Publisher Services (APS) header bidding passthrough for banner ads. When a placement's remote configuration includes APS parameters, the native SDKs run the Amazon bid alongside Prebid automatically — no Flutter-side changes required.
+* Bump the native Ezoic Ads SDK dependency to 1.5.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.5.0`, iOS `EzoicAdsSDK ~> 1.5`).
+
 ## 1.4.0
 
 * Add `EzoicOutstreamAdView` (platform-view widget rendering the native outstream video unit with load/error/impression/click/open/close callbacks).
