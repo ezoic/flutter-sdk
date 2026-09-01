@@ -1,3 +1,7 @@
+## 1.6.0
+
+* Bump native SDK pins to 1.6.0 (AppSDK/BundleId on ad-config requests; imp.ext.ezoic identity echo on auction imps).
+
 ## 1.5.0
 
 * Amazon Publisher Services (APS) header bidding passthrough for banner ads. When a placement's remote configuration includes APS parameters, the native SDKs run the Amazon bid alongside Prebid automatically — no Flutter-side changes required.
