@@ -1,3 +1,7 @@
+## 1.8.0
+
+* Bump native Ezoic Ads SDK pins to 1.8.0. `testMode` now also requests $0.00 Ezoic test-ad fill on no-demand auctions (development builds / simulators only); the first auction is still a real auction.
+
 ## 1.7.0
 
 * Bump native SDK pins to 1.7.0. Prebid floor gate: the native SDKs now attach Prebid keywords to the GAM request only when the Prebid bid meets the current eb_br rung floor (Google-only requests otherwise), mirroring web adjustHbValues; ad-unit config parses the new `targeting_floors` array parallel to `targeting_hashes`. Prebid Mobile demand is fetched once per load.
