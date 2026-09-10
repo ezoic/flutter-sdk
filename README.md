@@ -37,6 +37,21 @@ EzoicBannerView(
 load, or `0 × 0` when the view collapses. Set `collapseOnNoFill: false` to keep
 the reserved size on a no-fill.
 
+## Pageview Identity
+
+`trackPageview()` keeps its existing `Future<bool>` return value. Apps that
+need to correlate their own analytics with SDK pageviews can call
+`trackPageviewWithIds()` or read the current identifiers:
+
+```dart
+final pageview = await EzoicAds.trackPageviewWithIds();
+final pageviewId = pageview?.pageviewId ?? await EzoicAds.pageviewId;
+final visitorId = pageview?.visitorId ?? await EzoicAds.visitorId;
+```
+
+The identifiers are `null` before the first successful pageview request. Failed
+pageview requests preserve the last successful identifiers.
+
 ## Native Ads
 
 `EzoicNativeAdView` loads a native ad through the native SDKs and renders it in

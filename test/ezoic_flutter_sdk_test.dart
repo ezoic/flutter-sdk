@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   group('EzoicConfiguration', () {
@@ -14,7 +15,11 @@ void main() {
     });
 
     test('toMap respects overrides', () {
-      const config = EzoicConfiguration(domain: 'x.com', debugEnabled: true, testMode: true);
+      const config = EzoicConfiguration(
+        domain: 'x.com',
+        debugEnabled: true,
+        testMode: true,
+      );
       final map = config.toMap();
       expect(map['debugEnabled'], true);
       expect(map['testMode'], true);
@@ -31,9 +36,11 @@ void main() {
 
   group('EzoicReward.fromShowResult', () {
     test('maps an earned reward', () {
-      final reward = EzoicReward.fromShowResult(
-        {'earned': true, 'type': 'coins', 'amount': 10},
-      );
+      final reward = EzoicReward.fromShowResult({
+        'earned': true,
+        'type': 'coins',
+        'amount': 10,
+      });
       expect(reward, isNotNull);
       expect(reward!.type, 'coins');
       expect(reward.amount, 10);
@@ -55,6 +62,53 @@ void main() {
       expect(reward, isNotNull);
       expect(reward!.type, '');
       expect(reward.amount, 0);
+    });
+  });
+
+  group('EzoicAds pageview identity', () {
+    const channel = MethodChannel('com.ezoic/ezoic_flutter_sdk');
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+
+    tearDown(() {
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    });
+
+    test('reads current pageview and visitor ids', () async {
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        switch (call.method) {
+          case 'getPageviewId':
+            return 'pv-123';
+          case 'getVisitorId':
+            return 'visit-456';
+        }
+        fail('unexpected method ${call.method}');
+      });
+
+      expect(await EzoicAds.pageviewId, 'pv-123');
+      expect(await EzoicAds.visitorId, 'visit-456');
+    });
+
+    test('maps trackPageviewWithIds result and null failure', () async {
+      var shouldFail = false;
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        if (call.method != 'trackPageviewWithIds') {
+          fail('unexpected method ${call.method}');
+        }
+        if (shouldFail) return null;
+        return {'pageviewId': 'pv-123', 'visitorId': 'visit-456'};
+      });
+
+      final pageview = await EzoicAds.trackPageviewWithIds();
+      expect(pageview, isNotNull);
+      expect(pageview!.pageviewId, 'pv-123');
+      expect(pageview.visitorId, 'visit-456');
+
+      shouldFail = true;
+      expect(await EzoicAds.trackPageviewWithIds(), isNull);
     });
   });
 }
