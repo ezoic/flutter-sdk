@@ -1,3 +1,8 @@
+## 1.9.1
+
+* Rewarded ads now pass a server-issued rewarded impression id to Google Mobile Ads as the server-side verification (SSV) `user_id`, so SSV callbacks for rewarded completions can be matched. No API change.
+* Bump native Ezoic Ads SDK pins to 1.9.1 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.9.1`, iOS `EzoicAdsSDK ~> 1.9`).
+
 ## 1.9.0
 
 * Collapse unfilled banner and outstream ad views (`collapseOnNoFill`, default true). Widgets drop to zero size on a terminal no-fill; `onSizeChange` reports the displayed creative size (or 0×0 when collapsed). Native SDKs keep the previous creative through a failed refresh.
