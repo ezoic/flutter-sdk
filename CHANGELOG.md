@@ -1,3 +1,8 @@
+## 1.10.0
+
+* Rewarded ads now report their lifecycle (request, start, reward granted, close, failed-to-show) so rewarded performance can be tracked per placement. No API change.
+* Bump native Ezoic Ads SDK pins to 1.10.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.10.0`, iOS `EzoicAdsSDK ~> 1.10`).
+
 ## 1.9.1
 
 * Rewarded ads now pass a server-issued rewarded impression id to Google Mobile Ads as the server-side verification (SSV) `user_id`, so SSV callbacks for rewarded completions can be matched. No API change.
