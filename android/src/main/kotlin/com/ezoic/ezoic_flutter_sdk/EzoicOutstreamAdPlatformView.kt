@@ -33,6 +33,7 @@ class EzoicOutstreamAdPlatformView(
   private val container = FrameLayout(context)
   private val channel = MethodChannel(messenger, "com.ezoic/ezoic_outstream_ad_view_$viewId")
   private val adUnitId = (params["adUnitIdentifier"] as? String)?.toIntOrNull() ?: 0
+  private val collapseOnNoFill = (params["collapseOnNoFill"] as? Boolean) ?: true
   private val mainHandler = Handler(Looper.getMainLooper())
   private var outstreamView: EzoicOutstreamAdView? = null
   private var loadStarted = false
@@ -62,6 +63,7 @@ class EzoicOutstreamAdPlatformView(
     // the ad. Add it to the container before loading so it renders in place
     // when the SDK fills it.
     val view = EzoicOutstreamAdView(context, adUnitId)
+    view.collapseOnNoFill = collapseOnNoFill
     outstreamView = view
     container.addView(view)
 
@@ -91,6 +93,10 @@ class EzoicOutstreamAdPlatformView(
 
       override fun onOutstreamClosed(adView: EzoicOutstreamAdView) {
         post("onClose", null)
+      }
+
+      override fun onOutstreamSizeChanged(adView: EzoicOutstreamAdView, widthDp: Int, heightDp: Int) {
+        post("onSizeChange", mapOf("width" to widthDp, "height" to heightDp))
       }
     }
     view.loadAd()

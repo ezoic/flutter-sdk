@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'ezoic_ad_collapse.dart';
+
 /// Error delivered to [EzoicOutstreamAdView.onError] when an outstream ad fails
 /// to load.
 class EzoicOutstreamAdError {
@@ -27,6 +29,7 @@ Future<dynamic> Function(MethodCall call)
   VoidCallback? onClick,
   VoidCallback? onOpen,
   VoidCallback? onClose,
+  void Function(double width, double height)? onSizeChange,
 }) {
   return (MethodCall call) async {
     switch (call.method) {
@@ -52,6 +55,10 @@ Future<dynamic> Function(MethodCall call)
         break;
       case 'onClose':
         onClose?.call();
+        break;
+      case 'onSizeChange':
+        final size = parseSizeChangeArguments(call.arguments);
+        onSizeChange?.call(size.width, size.height);
         break;
     }
   };
@@ -79,6 +86,7 @@ void attachEzoicOutstreamAdChannel(
   VoidCallback? onClick,
   VoidCallback? onOpen,
   VoidCallback? onClose,
+  void Function(double width, double height)? onSizeChange,
 }) {
   channel.setMethodCallHandler(createEzoicOutstreamAdMethodCallHandler(
     onLoad: onLoad,
@@ -87,6 +95,7 @@ void attachEzoicOutstreamAdChannel(
     onClick: onClick,
     onOpen: onOpen,
     onClose: onClose,
+    onSizeChange: onSizeChange,
   ));
   unawaited(channel.invokeMethod<void>('load').catchError((_) {}));
 }
@@ -100,7 +109,9 @@ void attachEzoicOutstreamAdChannel(
 /// — the platform-view IS the ad.
 ///
 /// Platform views fill their parent's constraints, so size the ad by wrapping
-/// it in a [SizedBox] (or another constrained parent):
+/// it in a [SizedBox] (or another constrained parent). When a load does not
+/// fill and [collapseOnNoFill] is true, the widget collapses to
+/// [SizedBox.shrink]:
 ///
 /// ```dart
 /// SizedBox(
@@ -108,6 +119,8 @@ void attachEzoicOutstreamAdChannel(
 ///   child: EzoicOutstreamAdView(
 ///     adUnitIdentifier: '12345',
 ///     onLoad: () => debugPrint('outstream loaded'),
+///     onSizeChange: (width, height) =>
+///         debugPrint('outstream size $width x $height'),
 ///   ),
 /// )
 /// ```
@@ -115,6 +128,12 @@ class EzoicOutstreamAdView extends StatefulWidget {
   /// The Ezoic ad unit identifier. Crosses the bridge as a string and is
   /// coerced to a native `Int`.
   final String adUnitIdentifier;
+
+  /// Collapse the widget when a load fails and no ad is displayed.
+  ///
+  /// Defaults to `true`. Set to `false` to keep the parent-sized box on a
+  /// no-fill.
+  final bool collapseOnNoFill;
 
   /// Called when the outstream ad successfully loads.
   final VoidCallback? onLoad;
@@ -134,15 +153,23 @@ class EzoicOutstreamAdView extends StatefulWidget {
   /// Called when a presented full-screen overlay is dismissed.
   final VoidCallback? onClose;
 
+  /// Called when the displayed ad size changes.
+  ///
+  /// Reports the creative size in dp/pt after a successful load, or `0, 0`
+  /// when the view collapses.
+  final void Function(double width, double height)? onSizeChange;
+
   const EzoicOutstreamAdView({
     super.key,
     required this.adUnitIdentifier,
+    this.collapseOnNoFill = true,
     this.onLoad,
     this.onError,
     this.onImpression,
     this.onClick,
     this.onOpen,
     this.onClose,
+    this.onSizeChange,
   });
 
   @override
@@ -152,8 +179,11 @@ class EzoicOutstreamAdView extends StatefulWidget {
 class _EzoicOutstreamAdViewState extends State<EzoicOutstreamAdView> {
   static const String _viewType = 'com.ezoic/ezoic_outstream_ad_view';
 
+  bool _collapsed = false;
+
   Map<String, dynamic> get _creationParams => {
         'adUnitIdentifier': widget.adUnitIdentifier,
+        'collapseOnNoFill': widget.collapseOnNoFill,
       };
 
   void _onPlatformViewCreated(int id) {
@@ -166,11 +196,27 @@ class _EzoicOutstreamAdViewState extends State<EzoicOutstreamAdView> {
       onClick: () => widget.onClick?.call(),
       onOpen: () => widget.onOpen?.call(),
       onClose: () => widget.onClose?.call(),
+      onSizeChange: _handleSizeChange,
     );
+  }
+
+  void _handleSizeChange(double width, double height) {
+    widget.onSizeChange?.call(width, height);
+    final collapsed = shouldCollapse(
+      collapseOnNoFill: widget.collapseOnNoFill,
+      height: height,
+    );
+    if (collapsed != _collapsed && mounted) {
+      setState(() => _collapsed = collapsed);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_collapsed) {
+      return const SizedBox.shrink();
+    }
+
     if (defaultTargetPlatform == TargetPlatform.android) {
       return AndroidView(
         viewType: _viewType,

@@ -13,6 +13,30 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
+## Banner Ads
+
+`EzoicBannerView` embeds a native Ezoic banner. The widget sizes itself to the
+requested `EzoicBannerSize` (default `mediumRectangle` / 300×250). When a load
+does not fill and `collapseOnNoFill` is true (the default), the widget collapses
+to zero size (`SizedBox.shrink()`), so an empty ad box is not left on screen.
+
+```dart
+import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';
+
+EzoicBannerView(
+  adUnitIdentifier: '12345',
+  size: EzoicBannerSize.banner,
+  collapseOnNoFill: true,
+  onSizeChange: (width, height) => debugPrint('banner size $width x $height'),
+  onLoad: () => debugPrint('banner loaded'),
+  onError: (error) => debugPrint('banner failed: ${error.message}'),
+)
+```
+
+`onSizeChange` reports the displayed creative size in dp/pt after a successful
+load, or `0 × 0` when the view collapses. Set `collapseOnNoFill: false` to keep
+the reserved size on a no-fill.
+
 ## Native Ads
 
 `EzoicNativeAdView` loads a native ad through the native SDKs and renders it in
@@ -46,7 +70,9 @@ with the platform view's lifecycle — no manual `destroy()` call is required.
 `EzoicOutstreamAdView` loads an outstream video ad through the native SDKs and
 renders it inline through Google Ad Manager. Like the native ad view it is a
 platform view, so it fills its parent's constraints — wrap it in a `SizedBox`
-(or another constrained parent) to size it:
+(or another constrained parent) to size it. When a load does not fill and
+`collapseOnNoFill` is true (the default), the widget collapses to
+`SizedBox.shrink()`.
 
 ```dart
 import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';
@@ -55,6 +81,9 @@ SizedBox(
   height: 200,
   child: EzoicOutstreamAdView(
     adUnitIdentifier: '12345',
+    collapseOnNoFill: true,
+    onSizeChange: (width, height) =>
+        debugPrint('outstream size $width x $height'),
     onLoad: () => debugPrint('outstream ad loaded'),
     onError: (error) => debugPrint('outstream ad failed: ${error.message}'),
     onImpression: () => debugPrint('outstream ad impression'),
