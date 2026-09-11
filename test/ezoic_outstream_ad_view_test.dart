@@ -83,6 +83,44 @@ void main() {
       expect(error!.code, 0);
     });
 
+    test('onSizeChange routes width and height as doubles', () async {
+      double? width;
+      double? height;
+      final handler = createEzoicOutstreamAdMethodCallHandler(
+        onSizeChange: (w, h) {
+          width = w;
+          height = h;
+        },
+      );
+
+      await handler(
+          const MethodCall('onSizeChange', {'width': 640, 'height': 360}));
+
+      expect(width, isA<double>());
+      expect(width, 640.0);
+      expect(height, 360.0);
+    });
+
+    test('onSizeChange reports 0x0 on collapse and defaults missing keys',
+        () async {
+      double? width;
+      double? height;
+      final handler = createEzoicOutstreamAdMethodCallHandler(
+        onSizeChange: (w, h) {
+          width = w;
+          height = h;
+        },
+      );
+
+      await handler(const MethodCall('onSizeChange', {'width': 0, 'height': 0}));
+      expect(width, 0.0);
+      expect(height, 0.0);
+
+      await handler(const MethodCall('onSizeChange'));
+      expect(width, 0.0);
+      expect(height, 0.0);
+    });
+
     test('unknown methods are ignored', () async {
       var fired = false;
       final handler = createEzoicOutstreamAdMethodCallHandler(
@@ -92,6 +130,7 @@ void main() {
         onClick: () => fired = true,
         onOpen: () => fired = true,
         onClose: () => fired = true,
+        onSizeChange: (_, __) => fired = true,
       );
 
       await handler(const MethodCall('somethingUnhandled'));
@@ -106,6 +145,25 @@ void main() {
       await handler(const MethodCall('onLoad'));
       await handler(const MethodCall('onError', {'message': 'x', 'code': 1}));
       await handler(const MethodCall('onImpression'));
+      await handler(const MethodCall('onSizeChange', {
+        'width': 0,
+        'height': 0,
+      }));
+    });
+  });
+
+  group('shouldCollapse', () {
+    test('collapses on zero height when collapseOnNoFill is true', () {
+      expect(shouldCollapse(collapseOnNoFill: true, height: 0), isTrue);
+    });
+
+    test('does not collapse on a non-zero height', () {
+      expect(shouldCollapse(collapseOnNoFill: true, height: 200), isFalse);
+      expect(shouldCollapse(collapseOnNoFill: false, height: 200), isFalse);
+    });
+
+    test('does not collapse on zero height when collapseOnNoFill is false', () {
+      expect(shouldCollapse(collapseOnNoFill: false, height: 0), isFalse);
     });
   });
 
@@ -155,7 +213,43 @@ void main() {
       expect(androidView.viewType, 'com.ezoic/ezoic_outstream_ad_view');
       final params = androidView.creationParams as Map;
       expect(params['adUnitIdentifier'], '12345');
+      expect(params['collapseOnNoFill'], isTrue);
       expect(androidView.creationParamsCodec, isA<StandardMessageCodec>());
+    });
+
+    testWidgets('forwards collapseOnNoFill: false to creationParams',
+        (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: EzoicOutstreamAdView(
+            adUnitIdentifier: '12345',
+            collapseOnNoFill: false,
+          ),
+        ),
+      );
+
+      final androidView = tester.widget<AndroidView>(find.byType(AndroidView));
+      final params = androidView.creationParams as Map;
+      expect(params['collapseOnNoFill'], isFalse);
+    });
+
+    testWidgets('still fills a constrained parent when not collapsed',
+        (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: 320,
+              height: 200,
+              child: EzoicOutstreamAdView(adUnitIdentifier: '12345'),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.getSize(find.byType(AndroidView)), const Size(320, 200));
     });
   });
 }

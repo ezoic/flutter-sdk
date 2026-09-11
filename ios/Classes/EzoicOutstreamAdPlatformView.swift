@@ -18,6 +18,7 @@ class EzoicOutstreamAdPlatformView: NSObject, FlutterPlatformView, EzoicOutstrea
   private let container = UIView()
   private let channel: FlutterMethodChannel
   private let adUnitId: Int
+  private let collapseOnNoFill: Bool
   // The delegate is weak on the SDK side; this platform view retains the ad
   // view AND conforms to the delegate, so the ad view keeps a live delegate.
   private var outstreamView: EzoicOutstreamAdView?
@@ -27,6 +28,7 @@ class EzoicOutstreamAdPlatformView: NSObject, FlutterPlatformView, EzoicOutstrea
     channel = FlutterMethodChannel(name: "com.ezoic/ezoic_outstream_ad_view_\(viewId)", binaryMessenger: messenger)
     let params = args as? [String: Any]
     adUnitId = Int(params?["adUnitIdentifier"] as? String ?? "") ?? 0
+    collapseOnNoFill = (params?["collapseOnNoFill"] as? Bool) ?? true
     super.init()
     // The load is triggered by an explicit "load" call from Dart rather than
     // here, so the Dart-side handler is attached before the native SDK can
@@ -54,6 +56,7 @@ class EzoicOutstreamAdPlatformView: NSObject, FlutterPlatformView, EzoicOutstrea
     // Unlike the native-ad unit there is no separate ad object — the VIEW is
     // the ad. Add it before loading so it renders in place when filled.
     let view = EzoicOutstreamAdView(adUnitIdentifier: adUnitId)
+    view.collapseOnNoFill = collapseOnNoFill
     outstreamView = view
     // Assign the delegate BEFORE loadAd(): native loadAd() fails synchronously
     // when the SDK is uninitialized, so onError must already be wired.
@@ -95,6 +98,10 @@ class EzoicOutstreamAdPlatformView: NSObject, FlutterPlatformView, EzoicOutstrea
 
   func outstreamViewDidDismissScreen(_ outstreamView: EzoicOutstreamAdView) {
     channel.invokeMethod("onClose", arguments: nil)
+  }
+
+  func outstreamView(_ outstreamView: EzoicOutstreamAdView, didChangeSize size: CGSize) {
+    channel.invokeMethod("onSizeChange", arguments: ["width": size.width, "height": size.height])
   }
 
   deinit {

@@ -25,6 +25,7 @@ class EzoicBannerPlatformView: NSObject, FlutterPlatformView, EzoicBannerViewDel
     let adUnitId = Int(params?["adUnitIdentifier"] as? String ?? "") ?? 0
     let sizes = (params?["size"] as? String ?? "").split(separator: ",").map { String($0) }
     let view = EzoicBannerView(adUnitIdentifier: adUnitId)
+    view.collapseOnNoFill = (params?["collapseOnNoFill"] as? Bool) ?? true
     view.delegate = self
     view.translatesAutoresizingMaskIntoConstraints = false
     container.addSubview(view)
@@ -46,4 +47,7 @@ class EzoicBannerPlatformView: NSObject, FlutterPlatformView, EzoicBannerViewDel
   func bannerViewDidRecordClick(_ bannerView: EzoicBannerView) { channel.invokeMethod("onClick", arguments: nil) }
   func bannerViewWillPresentScreen(_ bannerView: EzoicBannerView) { channel.invokeMethod("onOpen", arguments: nil) }
   func bannerViewDidDismissScreen(_ bannerView: EzoicBannerView) { channel.invokeMethod("onClose", arguments: nil) }
+  func bannerView(_ bannerView: EzoicBannerView, didChangeSize size: CGSize) {
+    channel.invokeMethod("onSizeChange", arguments: ["width": size.width, "height": size.height])
+  }
 }

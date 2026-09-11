@@ -34,7 +34,9 @@ class EzoicBannerPlatformView(
   init {
     val adUnitId = (params["adUnitIdentifier"] as? String)?.toIntOrNull() ?: 0
     val sizes = (params["size"] as? String ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    val collapseOnNoFill = (params["collapseOnNoFill"] as? Boolean) ?: true
     val banner = EzoicBannerView(context, adUnitId)
+    banner.collapseOnNoFill = collapseOnNoFill
     banner.listener = object : EzoicBannerViewListener {
       override fun onBannerLoaded(b: EzoicBannerView) { channel.invokeMethod("onLoad", null) }
       override fun onBannerLoadFailed(b: EzoicBannerView, error: EzoicError) {
@@ -44,6 +46,9 @@ class EzoicBannerPlatformView(
       override fun onBannerClicked(b: EzoicBannerView) { channel.invokeMethod("onClick", null) }
       override fun onBannerOpened(b: EzoicBannerView) { channel.invokeMethod("onOpen", null) }
       override fun onBannerClosed(b: EzoicBannerView) { channel.invokeMethod("onClose", null) }
+      override fun onBannerSizeChanged(bannerView: EzoicBannerView, widthDp: Int, heightDp: Int) {
+        channel.invokeMethod("onSizeChange", mapOf("width" to widthDp, "height" to heightDp))
+      }
     }
     container.addView(banner)
     if (sizes.isEmpty()) banner.loadAd() else banner.loadAd(sizes)

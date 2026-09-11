@@ -1,3 +1,8 @@
+## 1.9.0
+
+* Collapse unfilled banner and outstream ad views (`collapseOnNoFill`, default true). Widgets drop to zero size on a terminal no-fill; `onSizeChange` reports the displayed creative size (or 0×0 when collapsed). Native SDKs keep the previous creative through a failed refresh.
+* Bump native Ezoic Ads SDK pins to 1.9.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.9.0`, iOS `EzoicAdsSDK ~> 1.9`).
+
 ## 1.8.0
 
 * Bump native Ezoic Ads SDK pins to 1.8.0. `testMode` now also requests $0.00 Ezoic test-ad fill on no-demand auctions (development builds / simulators only); the first auction is still a real auction.
