@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'ezoic_flutter_sdk'
-  s.version          = '1.10.0'
+  s.version          = '1.10.1'
   s.summary          = 'Ezoic Ads SDK for Flutter (Prebid + Google Ad Manager banner, native, interstitial and rewarded ads).'
   s.description      = <<-DESC
 Flutter plugin wrapping the native Ezoic Ads SDK. The iOS implementation

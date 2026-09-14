@@ -1,3 +1,8 @@
+## 1.10.1
+
+* Fix impression reporting: the impression event now reports the ad unit path without the network-code prefix, so rendered app impressions are counted correctly in Ezoic reporting. No API change.
+* Bump native Ezoic Ads SDK pins to 1.10.1 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.10.1`; iOS `EzoicAdsSDK ~> 1.10` already resolves 1.10.1).
+
 ## 1.10.0
 
 * Rewarded ads now report their lifecycle (request, start, reward granted, close, failed-to-show) so rewarded performance can be tracked per placement. No API change.
