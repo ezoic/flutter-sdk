@@ -177,6 +177,16 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
         result.success(null)
       }
       "trackPageview" -> EzoicAds.instance.trackPageview { success -> result.success(success) }
+      "getPageviewId" -> result.success(EzoicAds.instance.pageviewId)
+      "getVisitorId" -> result.success(EzoicAds.instance.visitorId)
+      "trackPageviewWithIds" -> EzoicAds.instance.trackPageviewWithIds { pageview ->
+        result.success(pageview?.let {
+          mapOf(
+            "pageviewId" to it.pageviewId,
+            "visitorId" to it.visitorId
+          )
+        })
+      }
       "loadRewardedAd" -> handleLoadRewardedAd(call, result)
       "showRewardedAd" -> handleShowRewardedAd(call, result)
       "loadInterstitialAd" -> handleLoadInterstitialAd(call, result)

@@ -113,6 +113,20 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       result(nil)
     case "trackPageview":
       EzoicAds.shared.trackPageview { success in result(success) }
+    case "getPageviewId":
+      result(EzoicAds.shared.pageviewId)
+    case "getVisitorId":
+      result(EzoicAds.shared.visitorId)
+    case "trackPageviewWithIds":
+      EzoicAds.shared.trackPageviewResult { pageview in
+        guard let pageview = pageview else {
+          result(nil)
+          return
+        }
+        var payload: [String: Any] = ["pageviewId": pageview.pageviewId]
+        payload["visitorId"] = pageview.visitorId ?? NSNull()
+        result(payload)
+      }
     case "loadRewardedAd":
       handleLoadRewardedAd(call, result)
     case "showRewardedAd":
