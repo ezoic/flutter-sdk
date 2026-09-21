@@ -232,8 +232,13 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
 
     val show = RewardShow(result)
     pendingShows[adUnitIdentifier] = show
+    val rewardName = call.argument<String>("rewardName")
     currentActivity.runOnUiThread {
-      ad.show(currentActivity) { reward -> show.reward = reward }
+      if (rewardName.isNullOrEmpty()) {
+        ad.show(currentActivity) { reward -> show.reward = reward }
+      } else {
+        ad.show(currentActivity, rewardName) { reward -> show.reward = reward }
+      }
     }
   }
 
