@@ -180,8 +180,9 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       return
     }
     pendingShows[id] = PendingRewardShow(result)
+    let rewardName = args["rewardName"] as? String
     // Presenting from nil lets GMA use the application's top view controller.
-    ad.show(from: nil) { [weak self] reward in
+    ad.show(from: nil, rewardName: rewardName) { [weak self] reward in
       self?.pendingShows[id]?.reward = reward
     }
   }

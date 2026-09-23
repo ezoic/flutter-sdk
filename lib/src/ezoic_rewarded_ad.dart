@@ -99,10 +99,14 @@ class EzoicRewardedAd {
   /// [EzoicReward], or `null` if the ad was dismissed before the reward was
   /// earned. Throws a [PlatformException] if the ad was not ready or failed to
   /// present.
-  Future<EzoicReward?> show() async {
+  Future<EzoicReward?> show({String? rewardName}) async {
+    final args = <String, dynamic>{'adUnitIdentifier': adUnitIdentifier};
+    if (rewardName != null) {
+      args['rewardName'] = rewardName;
+    }
     final result = await _channel.invokeMapMethod<String, dynamic>(
       'showRewardedAd',
-      {'adUnitIdentifier': adUnitIdentifier},
+      args,
     );
     return EzoicReward.fromShowResult(result);
   }

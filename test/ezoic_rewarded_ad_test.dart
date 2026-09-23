@@ -60,6 +60,42 @@ void main() {
   });
 
   group('EzoicRewardedAd.show', () {
+    test('sends rewardName when show is given one', () async {
+      final calls = <MethodCall>[];
+      setMainHandler((call) async {
+        calls.add(call);
+        if (call.method == 'showRewardedAd') {
+          await sendEvent('123', 'onDismissed');
+          return {'earned': false, 'type': '', 'amount': 0};
+        }
+        return null;
+      });
+
+      final ad = await EzoicRewardedAd.load('123');
+      await ad.show(rewardName: 'extra life');
+
+      final showCall = calls.singleWhere((call) => call.method == 'showRewardedAd');
+      expect((showCall.arguments as Map)['rewardName'], 'extra life');
+    });
+
+    test('omits rewardName when show is given none', () async {
+      final calls = <MethodCall>[];
+      setMainHandler((call) async {
+        calls.add(call);
+        if (call.method == 'showRewardedAd') {
+          await sendEvent('123', 'onDismissed');
+          return {'earned': false, 'type': '', 'amount': 0};
+        }
+        return null;
+      });
+
+      final ad = await EzoicRewardedAd.load('123');
+      await ad.show();
+
+      final showCall = calls.singleWhere((call) => call.method == 'showRewardedAd');
+      expect((showCall.arguments as Map).containsKey('rewardName'), isFalse);
+    });
+
     test('resolves the earned reward on dismiss and auto-destroys', () async {
       setMainHandler((call) async {
         if (call.method == 'showRewardedAd') {
