@@ -2,6 +2,10 @@
 
 A new Flutter plugin project.
 
+## Requirements
+
+- iOS 15.0+, Android `minSdk` 24+.
+
 ## Getting Started
 
 This project is a starting point for a Flutter

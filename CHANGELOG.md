@@ -1,3 +1,8 @@
+## 1.11.1
+
+* Pin the native iOS SDK to 1.11.x. Native 1.13.0 introduces a built-in consent dialog that this wrapper cannot yet configure; it will be adopted in wrapper 1.13.0.
+* Raise the iOS minimum deployment target to 15.0 (Xcode 27 floor).
+
 ## 1.11.0
 
 * `EzoicRewardedAd.show` takes an optional `rewardName`. Pass the reward you offer so rewarded reports can group by that name.
