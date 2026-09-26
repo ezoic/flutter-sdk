@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.ezoic.ads.sdk.adunits.EzoicInstreamAd
 import com.ezoic.ads.sdk.adunits.EzoicInstreamAdListener
 import com.ezoic.ads.sdk.adunits.EzoicInterstitialAd
@@ -25,6 +26,10 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
+  private companion object {
+    const val TAG = "EzoicFlutterSdk"
+  }
+
   private lateinit var channel: MethodChannel
   private lateinit var appContext: Context
   private lateinit var messenger: BinaryMessenger
@@ -161,9 +166,12 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
           autoTrackPageviews = call.argument<Boolean>("autoTrackPageviews") ?: true,
           cmpEnabled = call.argument<Boolean>("cmpEnabled") ?: true
         )
+        val autoPresentConsent = call.argument<Boolean>("autoPresentConsent") ?: true
         EzoicAds.instance.initialize(app, config) { r ->
-          r.onSuccess { result.success(null) }
-            .onFailure { e -> result.error("EzoicAds", e.message, e.toString()) }
+          r.onSuccess {
+            result.success(null)
+            if (autoPresentConsent) mainHandler.post { autoPresentConsent(config.debugEnabled) }
+          }.onFailure { e -> result.error("EzoicAds", e.message, e.toString()) }
         }
       }
       "setGDPRConsent" -> {
@@ -204,6 +212,20 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "reportInstreamImpression" -> handleReportInstreamImpression(call, result)
       "destroyInstreamAd" -> handleDestroyInstreamAd(call, result)
       else -> result.notImplemented()
+    }
+  }
+
+  /**
+   * Runs once after a successful `initialize` when `autoPresentConsent` is on.
+   * The outcome is only logged; apps that need it call `presentConsentIfRequired`.
+   */
+  private fun autoPresentConsent(debug: Boolean) {
+    if (activity == null) {
+      if (debug) Log.d(TAG, "Auto-present consent skipped: no foreground Activity")
+      return
+    }
+    presentConsent(reopen = false) { outcome ->
+      if (debug) Log.d(TAG, "Auto-present consent outcome: $outcome")
     }
   }
 

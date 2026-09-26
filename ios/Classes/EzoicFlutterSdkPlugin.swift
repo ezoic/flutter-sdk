@@ -93,9 +93,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
         autoTrackPageviews: args["autoTrackPageviews"] as? Bool ?? true,
         cmpEnabled: args["cmpEnabled"] as? Bool ?? true
       )
+      let autoPresentConsent = args["autoPresentConsent"] as? Bool ?? true
       EzoicAds.shared.initialize(with: config) { r in
         switch r {
-        case .success: result(nil)
+        case .success:
+          result(nil)
+          if autoPresentConsent { Self.autoPresentConsent(debug: config.debugEnabled) }
         case .failure(let e): result(FlutterError(code: "EzoicAds", message: e.localizedDescription, details: e.code))
         }
       }
@@ -147,6 +150,20 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       handleDestroyInstreamAd(call, result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  /// Runs once after a successful `initialize` when `autoPresentConsent` is on.
+  /// The outcome is only logged; apps that need it call `presentConsentIfRequired`.
+  private static func autoPresentConsent(debug: Bool) {
+    DispatchQueue.main.async {
+      guard let host = Self.topViewController() else {
+        if debug { NSLog("[EzoicFlutterSdk] Auto-present consent skipped: no foreground view controller") }
+        return
+      }
+      EzoicAds.shared.presentConsentIfRequired(from: host) { outcome in
+        if debug { NSLog("[EzoicFlutterSdk] Auto-present consent outcome: \(Self.consentOutcomeMap(outcome))") }
+      }
     }
   }
 
