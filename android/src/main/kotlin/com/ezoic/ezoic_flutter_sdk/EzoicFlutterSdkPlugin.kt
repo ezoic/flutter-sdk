@@ -15,6 +15,8 @@ import com.ezoic.ads.sdk.adunits.EzoicRewardedAdListenerAdapter
 import com.ezoic.ads.sdk.core.EzoicAds
 import com.ezoic.ads.sdk.core.EzoicConfiguration
 import com.ezoic.ads.sdk.core.EzoicError
+import com.ezoic.ads.sdk.privacy.cmp.ConsentDecisionType
+import com.ezoic.ads.sdk.privacy.cmp.ConsentOutcome
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -186,6 +188,13 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
           EzoicAds.instance.trackPageview(screen) { success -> result.success(success) }
         }
       }
+      "presentConsentIfRequired" -> presentConsent(reopen = false) { result.success(it) }
+      "presentConsentSettings" -> presentConsent(reopen = true) { result.success(it) }
+      "isConsentRequired" -> result.success(EzoicAds.instance.isConsentRequired)
+      "resetConsent" -> {
+        EzoicAds.instance.resetConsent()
+        result.success(null)
+      }
       "loadRewardedAd" -> handleLoadRewardedAd(call, result)
       "showRewardedAd" -> handleShowRewardedAd(call, result)
       "loadInterstitialAd" -> handleLoadInterstitialAd(call, result)
@@ -196,6 +205,41 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "destroyInstreamAd" -> handleDestroyInstreamAd(call, result)
       else -> result.notImplemented()
     }
+  }
+
+  /**
+   * Presents the consent dialog (or its settings view when [reopen]) from the
+   * host Activity and delivers the outcome in the wire format shared with the
+   * Dart side. Always completes with an outcome map, never `result.error`.
+   */
+  private fun presentConsent(reopen: Boolean, completion: (Map<String, Any>) -> Unit) {
+    val host = activity
+    if (host == null) {
+      completion(mapOf("type" to "failed", "code" to -1, "message" to "No foreground Activity"))
+      return
+    }
+    val deliver: (ConsentOutcome) -> Unit = { completion(it.toWireMap()) }
+    if (reopen) {
+      EzoicAds.instance.presentConsentSettings(host, deliver)
+    } else {
+      EzoicAds.instance.presentConsentIfRequired(host, deliver)
+    }
+  }
+
+  private fun ConsentOutcome.toWireMap(): Map<String, Any> = when (this) {
+    ConsentOutcome.NotRequired -> mapOf("type" to "notRequired")
+    ConsentOutcome.AlreadyDecided -> mapOf("type" to "alreadyDecided")
+    is ConsentOutcome.Decided -> mapOf(
+      "type" to "decided",
+      "decision" to when (decision) {
+        ConsentDecisionType.ACCEPT_ALL -> "acceptAll"
+        ConsentDecisionType.REJECT_ALL -> "rejectAll"
+        ConsentDecisionType.CUSTOM -> "custom"
+      }
+    )
+    ConsentOutcome.Dismissed -> mapOf("type" to "dismissed")
+    ConsentOutcome.AlreadyPresenting -> mapOf("type" to "alreadyPresenting")
+    is ConsentOutcome.Failed -> mapOf("type" to "failed", "code" to error.code, "message" to error.message)
   }
 
   private fun handleLoadRewardedAd(call: MethodCall, result: MethodChannel.Result) {

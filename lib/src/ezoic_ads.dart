@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 
 import 'ezoic_configuration.dart';
+import 'ezoic_consent.dart';
 
 /// Imperative entry point for the Ezoic Ads SDK.
 ///
@@ -58,5 +59,54 @@ class EzoicAds {
     final result =
         await _channel.invokeMethod<bool>('trackPageview', {'screen': screen});
     return result ?? false;
+  }
+
+  /// Presents the built-in consent dialog if GDPR applies and no valid
+  /// decision is stored.
+  ///
+  /// In GDPR regions, ad loads wait while the dialog is loading or on screen
+  /// (at most 5 minutes in total), and up to 10 seconds otherwise, then fail
+  /// with [EzoicErrorCode.consentRequired]. [EzoicAds.initialize] calls this
+  /// once for you unless [EzoicConfiguration.autoPresentConsent] is `false`.
+  /// Calling it again is harmless: you get [AlreadyPresenting] while a dialog
+  /// is in flight and [AlreadyDecided] once a decision is stored. Safe to call
+  /// before initialization finishes; if init fails you get a [Failed] outcome.
+  ///
+  /// Never throws for native outcomes: every result, including "no foreground
+  /// Activity / view controller" (`Failed(-1, ...)`), is an
+  /// [EzoicConsentOutcome].
+  static Future<EzoicConsentOutcome> presentConsentIfRequired() async {
+    final result =
+        await _channel.invokeMethod<Object?>('presentConsentIfRequired');
+    return EzoicConsentOutcome.fromMap(result);
+  }
+
+  /// Re-opens the consent dialog with the user's stored choices so they can
+  /// change them.
+  ///
+  /// TCF policy requires a persistent "Privacy settings" entry point that
+  /// calls this. Resolves to [NotRequired] outside GDPR regions, when
+  /// [EzoicConfiguration.cmpEnabled] is `false`, when another CMP is present,
+  /// or when consent is managed by the app.
+  static Future<EzoicConsentOutcome> presentConsentSettings() async {
+    final result =
+        await _channel.invokeMethod<Object?>('presentConsentSettings');
+    return EzoicConsentOutcome.fromMap(result);
+  }
+
+  /// Whether GDPR applies to this user and the built-in CMP handles consent.
+  ///
+  /// `true` whenever GDPR applies and the built-in CMP is in charge, including
+  /// after the user has decided; `false` otherwise. `null` until the init
+  /// request completes, or when the server sent no consent information.
+  static Future<bool?> isConsentRequired() {
+    return _channel.invokeMethod<bool>('isConsentRequired');
+  }
+
+  /// Deletes the decision stored by the built-in CMP so the dialog is shown
+  /// again (ads re-gate until the user decides). Keys written by another CMP
+  /// are left alone.
+  static Future<void> resetConsent() async {
+    await _channel.invokeMethod<void>('resetConsent');
   }
 }

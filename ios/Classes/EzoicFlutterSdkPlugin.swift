@@ -120,6 +120,15 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       } else {
         EzoicAds.shared.trackPageview { success in result(success) }
       }
+    case "presentConsentIfRequired":
+      presentConsent(reopen: false) { result($0) }
+    case "presentConsentSettings":
+      presentConsent(reopen: true) { result($0) }
+    case "isConsentRequired":
+      result(EzoicAds.shared.isConsentRequired)
+    case "resetConsent":
+      EzoicAds.shared.resetConsent()
+      result(nil)
     case "loadRewardedAd":
       handleLoadRewardedAd(call, result)
     case "showRewardedAd":
@@ -138,6 +147,65 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       handleDestroyInstreamAd(call, result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  /// Presents the consent dialog (or its settings view when `reopen`) from the
+  /// top-most view controller and delivers the outcome in the wire format
+  /// shared with the Dart side. Always completes with an outcome map, never a
+  /// `FlutterError`.
+  private func presentConsent(reopen: Bool, completion: @escaping ([String: Any]) -> Void) {
+    DispatchQueue.main.async {
+      guard let host = Self.topViewController() else {
+        completion(["type": "failed", "code": -1, "message": "No foreground view controller"])
+        return
+      }
+      let deliver: (ConsentOutcome) -> Void = { completion(Self.consentOutcomeMap($0)) }
+      if reopen {
+        EzoicAds.shared.presentConsentSettings(from: host, completion: deliver)
+      } else {
+        EzoicAds.shared.presentConsentIfRequired(from: host, completion: deliver)
+      }
+    }
+  }
+
+  /// The key window's root view controller, walked up to the top-most
+  /// presented one.
+  private static func topViewController() -> UIViewController? {
+    let windows = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+    let window = windows.first { $0.isKeyWindow } ?? windows.first
+    var top = window?.rootViewController
+    while let presented = top?.presentedViewController {
+      top = presented
+    }
+    return top
+  }
+
+  private static func consentOutcomeMap(_ outcome: ConsentOutcome) -> [String: Any] {
+    switch outcome {
+    case .notRequired:
+      return ["type": "notRequired"]
+    case .alreadyDecided:
+      return ["type": "alreadyDecided"]
+    case .decided(let decision):
+      let name: String
+      switch decision {
+      case .acceptAll: name = "acceptAll"
+      case .rejectAll: name = "rejectAll"
+      case .custom: name = "custom"
+      @unknown default: name = "unknown"
+      }
+      return ["type": "decided", "decision": name]
+    case .dismissed:
+      return ["type": "dismissed"]
+    case .alreadyPresenting:
+      return ["type": "alreadyPresenting"]
+    case .failed(let error):
+      return ["type": "failed", "code": error.code, "message": error.localizedDescription]
+    @unknown default:
+      return ["type": "failed", "code": -1, "message": "Unrecognized outcome"]
     }
   }
 
