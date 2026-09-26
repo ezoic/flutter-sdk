@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.ezoic.ads.sdk.adunits.EzoicInstreamAd
 import com.ezoic.ads.sdk.adunits.EzoicInstreamAdListener
 import com.ezoic.ads.sdk.adunits.EzoicInterstitialAd
@@ -15,6 +16,8 @@ import com.ezoic.ads.sdk.adunits.EzoicRewardedAdListenerAdapter
 import com.ezoic.ads.sdk.core.EzoicAds
 import com.ezoic.ads.sdk.core.EzoicConfiguration
 import com.ezoic.ads.sdk.core.EzoicError
+import com.ezoic.ads.sdk.privacy.cmp.ConsentDecisionType
+import com.ezoic.ads.sdk.privacy.cmp.ConsentOutcome
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -23,6 +26,10 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
+  private companion object {
+    const val TAG = "EzoicFlutterSdk"
+  }
+
   private lateinit var channel: MethodChannel
   private lateinit var appContext: Context
   private lateinit var messenger: BinaryMessenger
@@ -155,11 +162,16 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
           subjectToCOPPA = call.argument<Boolean>("subjectToCOPPA") ?: false,
           requestATTBeforeAds = call.argument<Boolean>("requestATTBeforeAds") ?: true,
           debugEnabled = call.argument<Boolean>("debugEnabled") ?: false,
-          testMode = call.argument<Boolean>("testMode") ?: false
+          testMode = call.argument<Boolean>("testMode") ?: false,
+          autoTrackPageviews = call.argument<Boolean>("autoTrackPageviews") ?: true,
+          cmpEnabled = call.argument<Boolean>("cmpEnabled") ?: true
         )
+        val shouldAutoPresent = call.argument<Boolean>("autoPresentConsent") ?: true
         EzoicAds.instance.initialize(app, config) { r ->
-          r.onSuccess { result.success(null) }
-            .onFailure { e -> result.error("EzoicAds", e.message, e.toString()) }
+          r.onSuccess {
+            result.success(null)
+            if (shouldAutoPresent) mainHandler.post { autoPresentConsent(config.debugEnabled) }
+          }.onFailure { e -> result.error("EzoicAds", e.message, (e as? EzoicError)?.code ?: e.toString()) }
         }
       }
       "setGDPRConsent" -> {
@@ -176,7 +188,21 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
         EzoicAds.instance.setSubjectToCOPPA(call.argument<Boolean>("value") ?: false)
         result.success(null)
       }
-      "trackPageview" -> EzoicAds.instance.trackPageview { success -> result.success(success) }
+      "trackPageview" -> {
+        val screen = call.argument<String>("screen")
+        if (screen.isNullOrEmpty()) {
+          EzoicAds.instance.trackPageview { success -> result.success(success) }
+        } else {
+          EzoicAds.instance.trackPageview(screen) { success -> result.success(success) }
+        }
+      }
+      "presentConsentIfRequired" -> presentConsent(reopen = false) { result.success(it) }
+      "presentConsentSettings" -> presentConsent(reopen = true) { result.success(it) }
+      "isConsentRequired" -> result.success(EzoicAds.instance.isConsentRequired)
+      "resetConsent" -> {
+        EzoicAds.instance.resetConsent()
+        result.success(null)
+      }
       "loadRewardedAd" -> handleLoadRewardedAd(call, result)
       "showRewardedAd" -> handleShowRewardedAd(call, result)
       "loadInterstitialAd" -> handleLoadInterstitialAd(call, result)
@@ -187,6 +213,55 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "destroyInstreamAd" -> handleDestroyInstreamAd(call, result)
       else -> result.notImplemented()
     }
+  }
+
+  /**
+   * Runs once after a successful `initialize` when `autoPresentConsent` is on.
+   * The outcome is only logged; apps that need it call `presentConsentIfRequired`.
+   */
+  private fun autoPresentConsent(debug: Boolean) {
+    if (activity == null) {
+      if (debug) Log.d(TAG, "Auto-present consent skipped: no foreground Activity")
+      return
+    }
+    presentConsent(reopen = false) { outcome ->
+      if (debug) Log.d(TAG, "Auto-present consent outcome: $outcome")
+    }
+  }
+
+  /**
+   * Presents the consent dialog (or its settings view when [reopen]) from the
+   * host Activity and delivers the outcome in the wire format shared with the
+   * Dart side. Always completes with an outcome map, never `result.error`.
+   */
+  private fun presentConsent(reopen: Boolean, completion: (Map<String, Any>) -> Unit) {
+    val host = activity
+    if (host == null) {
+      completion(mapOf("type" to "failed", "code" to -1, "message" to "No foreground Activity"))
+      return
+    }
+    val deliver: (ConsentOutcome) -> Unit = { completion(it.toWireMap()) }
+    if (reopen) {
+      EzoicAds.instance.presentConsentSettings(host, deliver)
+    } else {
+      EzoicAds.instance.presentConsentIfRequired(host, deliver)
+    }
+  }
+
+  private fun ConsentOutcome.toWireMap(): Map<String, Any> = when (this) {
+    ConsentOutcome.NotRequired -> mapOf("type" to "notRequired")
+    ConsentOutcome.AlreadyDecided -> mapOf("type" to "alreadyDecided")
+    is ConsentOutcome.Decided -> mapOf(
+      "type" to "decided",
+      "decision" to when (decision) {
+        ConsentDecisionType.ACCEPT_ALL -> "acceptAll"
+        ConsentDecisionType.REJECT_ALL -> "rejectAll"
+        ConsentDecisionType.CUSTOM -> "custom"
+      }
+    )
+    ConsentOutcome.Dismissed -> mapOf("type" to "dismissed")
+    ConsentOutcome.AlreadyPresenting -> mapOf("type" to "alreadyPresenting")
+    is ConsentOutcome.Failed -> mapOf("type" to "failed", "code" to error.code, "message" to error.message)
   }
 
   private fun handleLoadRewardedAd(call: MethodCall, result: MethodChannel.Result) {
@@ -210,7 +285,7 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
         }
         result.success(null)
       }.onFailure { e ->
-        result.error("EzoicAds", e.message ?: "Rewarded ad failed to load", e.toString())
+        result.error("EzoicAds", e.message ?: "Rewarded ad failed to load", (e as? EzoicError)?.code ?: e.toString())
       }
     }
   }
@@ -319,7 +394,7 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
         }
         result.success(null)
       }.onFailure { e ->
-        result.error("EzoicAds", e.message ?: "Interstitial ad failed to load", e.toString())
+        result.error("EzoicAds", e.message ?: "Interstitial ad failed to load", (e as? EzoicError)?.code ?: e.toString())
       }
     }
   }

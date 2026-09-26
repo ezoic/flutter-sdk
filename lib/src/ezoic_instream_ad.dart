@@ -1,8 +1,13 @@
 import 'package:flutter/services.dart';
 
+import 'ezoic_consent.dart';
+
 /// Error thrown by [EzoicInstreamAd.load] when the native load fails.
 class EzoicInstreamAdError {
   final String message;
+
+  /// Native `EzoicError` code. [EzoicErrorCode.consentRequired] (5001) means
+  /// GDPR applies and the user has not made a consent choice yet.
   final int code;
   const EzoicInstreamAdError(this.message, this.code);
 }

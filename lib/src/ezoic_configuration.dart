@@ -23,6 +23,25 @@ class EzoicConfiguration {
   /// Enable test mode (serves test ads). Defaults to `false`.
   final bool testMode;
 
+  /// Let the native SDK record a pageview on its own for every host screen
+  /// (Activity / view controller) it sees. Defaults to `true`.
+  ///
+  /// In Flutter the whole app is usually one host screen, so label each route
+  /// with [EzoicAds.trackPageview]; set this to `false` when you label every
+  /// screen yourself.
+  final bool autoTrackPageviews;
+
+  /// Enable the native SDK's built-in IAB TCF 2.4 consent dialog for users in
+  /// GDPR regions. Defaults to `true`. Set to `false` if your app runs another
+  /// CMP (UMP, OneTrust, ...).
+  final bool cmpEnabled;
+
+  /// Wrapper-only: after [EzoicAds.initialize] succeeds, present the consent
+  /// dialog once if it is required (see [EzoicAds.presentConsentIfRequired]).
+  /// Defaults to `true`. Set to `false` to choose the timing yourself or to
+  /// receive the outcome.
+  final bool autoPresentConsent;
+
   const EzoicConfiguration({
     required this.domain,
     this.autoReadConsent = true,
@@ -30,6 +49,9 @@ class EzoicConfiguration {
     this.requestATTBeforeAds = true,
     this.debugEnabled = false,
     this.testMode = false,
+    this.autoTrackPageviews = true,
+    this.cmpEnabled = true,
+    this.autoPresentConsent = true,
   });
 
   /// Serializes this configuration for transport across the method channel.
@@ -40,5 +62,8 @@ class EzoicConfiguration {
         'requestATTBeforeAds': requestATTBeforeAds,
         'debugEnabled': debugEnabled,
         'testMode': testMode,
+        'autoTrackPageviews': autoTrackPageviews,
+        'cmpEnabled': cmpEnabled,
+        'autoPresentConsent': autoPresentConsent,
       };
 }

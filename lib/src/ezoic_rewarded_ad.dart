@@ -30,6 +30,8 @@ class EzoicReward {
 /// Error delivered to [EzoicRewardedAd.onFailedToShow] when presentation fails.
 class EzoicRewardedAdError {
   final String message;
+
+  /// Native `EzoicError` code for the show failure.
   final int code;
   const EzoicRewardedAdError(this.message, this.code);
 }

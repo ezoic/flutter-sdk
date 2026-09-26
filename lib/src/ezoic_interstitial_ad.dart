@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 /// [EzoicInterstitialAd.show] when presentation fails.
 class EzoicInterstitialAdError {
   final String message;
+
+  /// Native `EzoicError` code for the show failure.
   final int code;
   const EzoicInterstitialAdError(this.message, this.code);
 }

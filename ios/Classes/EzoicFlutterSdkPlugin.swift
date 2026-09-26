@@ -89,11 +89,16 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
         subjectToCOPPA: args["subjectToCOPPA"] as? Bool ?? false,
         requestATTBeforeAds: args["requestATTBeforeAds"] as? Bool ?? true,
         debugEnabled: args["debugEnabled"] as? Bool ?? false,
-        testMode: args["testMode"] as? Bool ?? false
+        testMode: args["testMode"] as? Bool ?? false,
+        autoTrackPageviews: args["autoTrackPageviews"] as? Bool ?? true,
+        cmpEnabled: args["cmpEnabled"] as? Bool ?? true
       )
+      let shouldAutoPresent = args["autoPresentConsent"] as? Bool ?? true
       EzoicAds.shared.initialize(with: config) { r in
         switch r {
-        case .success: result(nil)
+        case .success:
+          result(nil)
+          if shouldAutoPresent { Self.autoPresentConsent(debug: config.debugEnabled) }
         case .failure(let e): result(FlutterError(code: "EzoicAds", message: e.localizedDescription, details: e.code))
         }
       }
@@ -112,7 +117,21 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       EzoicAds.shared.setSubjectToCOPPA(args?["value"] as? Bool ?? false)
       result(nil)
     case "trackPageview":
-      EzoicAds.shared.trackPageview { success in result(success) }
+      let args = call.arguments as? [String: Any]
+      if let screen = args?["screen"] as? String, !screen.isEmpty {
+        EzoicAds.shared.trackPageview(screen: screen) { success in result(success) }
+      } else {
+        EzoicAds.shared.trackPageview { success in result(success) }
+      }
+    case "presentConsentIfRequired":
+      presentConsent(reopen: false) { result($0) }
+    case "presentConsentSettings":
+      presentConsent(reopen: true) { result($0) }
+    case "isConsentRequired":
+      result(EzoicAds.shared.isConsentRequired)
+    case "resetConsent":
+      EzoicAds.shared.resetConsent()
+      result(nil)
     case "loadRewardedAd":
       handleLoadRewardedAd(call, result)
     case "showRewardedAd":
@@ -131,6 +150,81 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       handleDestroyInstreamAd(call, result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  /// Runs once after a successful `initialize` when `autoPresentConsent` is on.
+  /// The outcome is only logged; apps that need it call `presentConsentIfRequired`.
+  private static func autoPresentConsent(debug: Bool) {
+    DispatchQueue.main.async {
+      guard let host = Self.topViewController() else {
+        if debug { NSLog("[EzoicFlutterSdk] Auto-present consent skipped: no foreground view controller") }
+        return
+      }
+      EzoicAds.shared.presentConsentIfRequired(from: host) { outcome in
+        if debug { NSLog("[EzoicFlutterSdk] Auto-present consent outcome: \(Self.consentOutcomeMap(outcome))") }
+      }
+    }
+  }
+
+  /// Presents the consent dialog (or its settings view when `reopen`) from the
+  /// top-most view controller and delivers the outcome in the wire format
+  /// shared with the Dart side. Always completes with an outcome map, never a
+  /// `FlutterError`.
+  private func presentConsent(reopen: Bool, completion: @escaping ([String: Any]) -> Void) {
+    DispatchQueue.main.async {
+      guard let host = Self.topViewController() else {
+        completion(["type": "failed", "code": -1, "message": "No foreground view controller"])
+        return
+      }
+      let deliver: (ConsentOutcome) -> Void = { completion(Self.consentOutcomeMap($0)) }
+      if reopen {
+        EzoicAds.shared.presentConsentSettings(from: host, completion: deliver)
+      } else {
+        EzoicAds.shared.presentConsentIfRequired(from: host, completion: deliver)
+      }
+    }
+  }
+
+  /// The key window's root view controller (preferring foreground-active
+  /// scenes), walked up to the top-most presented one that isn't being
+  /// dismissed.
+  private static func topViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let active = scenes.filter { $0.activationState == .foregroundActive }
+    let windows = (active.isEmpty ? scenes : active).flatMap { $0.windows }
+    let window = windows.first { $0.isKeyWindow } ?? windows.first
+    var top = window?.rootViewController
+    while let presented = top?.presentedViewController, !presented.isBeingDismissed {
+      top = presented
+    }
+    return top
+  }
+
+  private static let unrecognizedOutcome: [String: Any] =
+    ["type": "failed", "code": -1, "message": "Unrecognized outcome"]
+
+  private static func consentOutcomeMap(_ outcome: ConsentOutcome) -> [String: Any] {
+    switch outcome {
+    case .notRequired:
+      return ["type": "notRequired"]
+    case .alreadyDecided:
+      return ["type": "alreadyDecided"]
+    case .decided(let decision):
+      switch decision {
+      case .acceptAll: return ["type": "decided", "decision": "acceptAll"]
+      case .rejectAll: return ["type": "decided", "decision": "rejectAll"]
+      case .custom: return ["type": "decided", "decision": "custom"]
+      @unknown default: return unrecognizedOutcome
+      }
+    case .dismissed:
+      return ["type": "dismissed"]
+    case .alreadyPresenting:
+      return ["type": "alreadyPresenting"]
+    case .failed(let error):
+      return ["type": "failed", "code": error.code, "message": error.localizedDescription]
+    @unknown default:
+      return unrecognizedOutcome
     }
   }
 
