@@ -114,7 +114,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       EzoicAds.shared.setSubjectToCOPPA(args?["value"] as? Bool ?? false)
       result(nil)
     case "trackPageview":
-      EzoicAds.shared.trackPageview { success in result(success) }
+      let args = call.arguments as? [String: Any]
+      if let screen = args?["screen"] as? String, !screen.isEmpty {
+        EzoicAds.shared.trackPageview(screen: screen) { success in result(success) }
+      } else {
+        EzoicAds.shared.trackPageview { success in result(success) }
+      }
     case "loadRewardedAd":
       handleLoadRewardedAd(call, result)
     case "showRewardedAd":

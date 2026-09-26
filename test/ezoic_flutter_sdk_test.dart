@@ -35,6 +35,26 @@ void main() {
     });
   });
 
+  group('EzoicAds.trackPageview', () {
+    test('sends a null screen when called without a label', () async {
+      mockMain((_) => true);
+      expect(await EzoicAds.trackPageview(), true);
+      expect(calls.single.method, 'trackPageview');
+      expect(calls.single.arguments, {'screen': null});
+    });
+
+    test('sends the screen label', () async {
+      mockMain((_) => true);
+      expect(await EzoicAds.trackPageview('Home'), true);
+      expect(calls.single.arguments, {'screen': 'Home'});
+    });
+
+    test('resolves false when native returns null', () async {
+      mockMain((_) => null);
+      expect(await EzoicAds.trackPageview('Home'), false);
+    });
+  });
+
   group('EzoicConfiguration', () {
     test('toMap includes domain and defaults', () {
       const config = EzoicConfiguration(domain: 'example.com');

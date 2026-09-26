@@ -46,8 +46,17 @@ class EzoicAds {
   }
 
   /// Tracks a pageview. Resolves to whether the native SDK accepted it.
-  static Future<bool> trackPageview() async {
-    final result = await _channel.invokeMethod<bool>('trackPageview');
+  ///
+  /// Pass a [screen] label (e.g. the route name) when the user lands on a
+  /// screen so Ezoic reports the pageview, and the ads shown on that screen,
+  /// under that page. Use `/` for hierarchy (`members/profile`); spaces become
+  /// `-`, punctuation is dropped, case is kept. A labelled pageview takes
+  /// precedence over the native SDK's automatic pageview for the same
+  /// navigation. Without a label (or with an empty one) the native SDK uses its
+  /// default label for the host screen.
+  static Future<bool> trackPageview([String? screen]) async {
+    final result =
+        await _channel.invokeMethod<bool>('trackPageview', {'screen': screen});
     return result ?? false;
   }
 }

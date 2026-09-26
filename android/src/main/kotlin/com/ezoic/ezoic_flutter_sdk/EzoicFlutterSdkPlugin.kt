@@ -178,7 +178,14 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
         EzoicAds.instance.setSubjectToCOPPA(call.argument<Boolean>("value") ?: false)
         result.success(null)
       }
-      "trackPageview" -> EzoicAds.instance.trackPageview { success -> result.success(success) }
+      "trackPageview" -> {
+        val screen = call.argument<String>("screen")
+        if (screen.isNullOrEmpty()) {
+          EzoicAds.instance.trackPageview { success -> result.success(success) }
+        } else {
+          EzoicAds.instance.trackPageview(screen) { success -> result.success(success) }
+        }
+      }
       "loadRewardedAd" -> handleLoadRewardedAd(call, result)
       "showRewardedAd" -> handleShowRewardedAd(call, result)
       "loadInterstitialAd" -> handleLoadInterstitialAd(call, result)
