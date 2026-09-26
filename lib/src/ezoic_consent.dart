@@ -17,8 +17,10 @@ enum EzoicConsentDecision { acceptAll, rejectAll, custom }
 sealed class EzoicConsentOutcome {
   const EzoicConsentOutcome();
 
-  /// Parses the map sent by the native plugins. Input that is not a
-  /// recognized outcome becomes `Failed(-1, 'Unrecognized outcome')`.
+  /// Parses the map sent by the native plugins. Never throws: input that is
+  /// not a recognized outcome becomes `Failed(-1, 'Unrecognized outcome')`,
+  /// and a `failed` map with a missing or mistyped field gets code `-1` /
+  /// message `'Unknown error'`.
   factory EzoicConsentOutcome.fromMap(Object? map) {
     const unrecognized = Failed(-1, 'Unrecognized outcome');
     if (map is! Map) return unrecognized;
@@ -38,9 +40,11 @@ sealed class EzoicConsentOutcome {
         }
         return unrecognized;
       case 'failed':
+        final code = map['code'];
+        final message = map['message'];
         return Failed(
-          (map['code'] as num?)?.toInt() ?? -1,
-          map['message'] as String? ?? '',
+          code is num ? code.toInt() : -1,
+          message is String ? message : 'Unknown error',
         );
       default:
         return unrecognized;

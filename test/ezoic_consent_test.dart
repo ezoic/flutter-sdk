@@ -59,7 +59,31 @@ void main() {
 
     test('defaults a failure missing its fields', () {
       expect(EzoicConsentOutcome.fromMap({'type': 'failed'}),
-          const Failed(-1, ''));
+          const Failed(-1, 'Unknown error'));
+    });
+
+    test('coerces a failure with a non-numeric code', () {
+      expect(
+        EzoicConsentOutcome.fromMap(
+            {'type': 'failed', 'code': '5001', 'message': 'Network error'}),
+        const Failed(-1, 'Network error'),
+      );
+    });
+
+    test('coerces a failure with a non-string message', () {
+      expect(
+        EzoicConsentOutcome.fromMap(
+            {'type': 'failed', 'code': 1003, 'message': 7}),
+        const Failed(1003, 'Unknown error'),
+      );
+    });
+
+    test('truncates a fractional code', () {
+      expect(
+        EzoicConsentOutcome.fromMap(
+            {'type': 'failed', 'code': 1003.0, 'message': 'x'}),
+        const Failed(1003, 'x'),
+      );
     });
 
     test('maps malformed input to failed(-1)', () {
