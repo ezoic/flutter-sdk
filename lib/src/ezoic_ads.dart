@@ -72,14 +72,11 @@ class EzoicAds {
   /// is in flight and [AlreadyDecided] once a decision is stored. Safe to call
   /// before initialization finishes; if init fails you get a [Failed] outcome.
   ///
-  /// Never throws for native outcomes: every result, including "no foreground
-  /// Activity / view controller" (`Failed(-1, ...)`), is an
-  /// [EzoicConsentOutcome].
-  static Future<EzoicConsentOutcome> presentConsentIfRequired() async {
-    final result =
-        await _channel.invokeMethod<Object?>('presentConsentIfRequired');
-    return EzoicConsentOutcome.fromMap(result);
-  }
+  /// Never throws: every result is an [EzoicConsentOutcome]. "No foreground
+  /// Activity / view controller" and channel errors (e.g. the plugin is not
+  /// registered) become `Failed(-1, ...)`.
+  static Future<EzoicConsentOutcome> presentConsentIfRequired() =>
+      _presentConsent('presentConsentIfRequired');
 
   /// Re-opens the consent dialog with the user's stored choices so they can
   /// change them.
@@ -88,10 +85,20 @@ class EzoicAds {
   /// calls this. Resolves to [NotRequired] outside GDPR regions, when
   /// [EzoicConfiguration.cmpEnabled] is `false`, when another CMP is present,
   /// or when consent is managed by the app.
-  static Future<EzoicConsentOutcome> presentConsentSettings() async {
-    final result =
-        await _channel.invokeMethod<Object?>('presentConsentSettings');
-    return EzoicConsentOutcome.fromMap(result);
+  static Future<EzoicConsentOutcome> presentConsentSettings() =>
+      _presentConsent('presentConsentSettings');
+
+  static Future<EzoicConsentOutcome> _presentConsent(String method) async {
+    try {
+      return EzoicConsentOutcome.fromMap(
+          await _channel.invokeMethod<Object?>(method));
+    } on PlatformException catch (e) {
+      return Failed(-1, e.message ?? e.toString());
+    } on MissingPluginException catch (e) {
+      return Failed(-1, e.message ?? e.toString());
+    } catch (e) {
+      return Failed(-1, e.toString());
+    }
   }
 
   /// Whether GDPR applies to this user and the built-in CMP handles consent.

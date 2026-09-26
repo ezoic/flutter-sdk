@@ -137,6 +137,38 @@ void main() {
       expect(outcome, const Failed(-1, 'No foreground Activity'));
     });
 
+    test('a null native reply becomes an unrecognized failure', () async {
+      mockMain((_) => null);
+      expect(await EzoicAds.presentConsentIfRequired(),
+          const Failed(-1, 'Unrecognized outcome'));
+    });
+
+    test('a PlatformException becomes a failed outcome', () async {
+      mockMain((_) => throw PlatformException(code: 'EzoicAds', message: 'boom'));
+      expect(await EzoicAds.presentConsentIfRequired(), const Failed(-1, 'boom'));
+      expect(await EzoicAds.presentConsentSettings(), const Failed(-1, 'boom'));
+    });
+
+    test('a PlatformException without a message falls back to its string form',
+        () async {
+      mockMain((_) => throw PlatformException(code: 'EzoicAds'));
+      final outcome = await EzoicAds.presentConsentSettings();
+      expect(outcome, isA<Failed>());
+      expect((outcome as Failed).code, -1);
+      expect(outcome.message, contains('EzoicAds'));
+    });
+
+    test('a missing plugin becomes a failed outcome', () async {
+      messenger.setMockMethodCallHandler(mainChannel, null);
+      final ifRequired = await EzoicAds.presentConsentIfRequired();
+      final settings = await EzoicAds.presentConsentSettings();
+      for (final outcome in [ifRequired, settings]) {
+        expect(outcome, isA<Failed>());
+        expect((outcome as Failed).code, -1);
+        expect(outcome.message, contains('presentConsent'));
+      }
+    });
+
     test('isConsentRequired passes true, false and null through', () async {
       for (final value in [true, false, null]) {
         mockMain((_) => value);
