@@ -24,19 +24,16 @@ dependencies:
       ref: v1.13.0
 ```
 
-**iOS.** The native SDK and Google Mobile Ads ship as static binaries, so your
-app's `ios/Podfile` needs the iOS 15 platform and static framework linkage:
+**iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
+`pod install` in `ios/` (or let `flutter run` do it):
 
 ```ruby
 platform :ios, '15.0'
-
-target 'Runner' do
-  use_frameworks! :linkage => :static
-  # ...
-end
 ```
 
-Then run `pod install` in `ios/` (or let `flutter run` do it).
+The native SDK and Google Mobile Ads ship as static binaries, so the plugin
+must link statically; its podspec declares `static_framework = true`, so this
+works with the template's plain `use_frameworks!`.
 
 **Android.** The native SDK is resolved from Maven Central; nothing else to add.
 
@@ -90,9 +87,13 @@ nothing.
 dialog is loading or on screen (at most 5 minutes in total), and up to
 10 seconds while no dialog is in progress, then fail with
 [`EzoicErrorCode.consentRequired`](#error-codes) (5001). They proceed without
-a decision only when the dialog cannot be shown (a `Failed` outcome): ads then
-carry `IABTCF_gdprApplies=1` and no TC string, which Google treats as limited
-ads (and many Prebid bidders skip).
+a decision only when the native dialog itself cannot be shown (a `Failed`
+outcome): ads then carry `IABTCF_gdprApplies=1` and no TC string, which Google
+treats as limited ads (and many Prebid bidders skip). Two `Failed` codes are
+different: `1001` (not initialized) writes nothing, and the plugin's `-1` (no
+foreground Activity / view controller) never reaches the CMP. After either,
+ads stay gated and fail with 5001; call `presentConsentIfRequired()` again
+once a screen is showing.
 
 **Choosing the timing yourself.** Set `autoPresentConsent: false` and call
 `presentConsentIfRequired()` when you are ready, for example from your first
@@ -141,7 +142,7 @@ with an `EzoicConsentOutcome`; they do not throw for consent results:
 | `Decided(decision)` | The user chose `EzoicConsentDecision.acceptAll`, `rejectAll` or `custom`; the choice is saved |
 | `Dismissed()` | The dialog closed without a choice; ads stay gated for this session. This can happen without user action (the dialog failed to start, or `resetConsent()` ran while it was loading or open) |
 | `AlreadyPresenting()` | A consent dialog is already on screen, or one is being prepared with nothing on screen yet |
-| `Failed(code, message)` | The dialog couldn't be shown (e.g. network error); ads proceed as limited ads (see above). `code` is the native `EzoicError` code, or `-1` when the plugin had no foreground Activity / view controller to present from |
+| `Failed(code, message)` | The dialog couldn't be shown (e.g. network error); ads proceed as limited ads (see above). `code` is the native `EzoicError` code, or `-1` when the plugin had no foreground Activity / view controller (or the platform call itself failed). Exception: after `1001` (not initialized) or `-1` nothing is written and ads stay gated (fail with 5001); call `presentConsentIfRequired()` again once a screen is showing |
 
 - **`presentConsentSettings()`** always reopens the dialog in GDPR regions,
   even if the user already decided. It returns `NotRequired` outside GDPR
@@ -244,18 +245,32 @@ native SDK never records host-screen pageviews on its own.
 
 `EzoicErrorCode.consentRequired` (5001) is reported when an ad load fails
 because GDPR applies and the user has not made a consent choice yet (see
-[Privacy & Consent](#privacy--consent)). It arrives as `code` on
-`EzoicBannerError`, `EzoicNativeAdError`, `EzoicOutstreamAdError` (the
-`onError` callbacks), on `EzoicInterstitialAdError` / `EzoicInstreamAdError`
-thrown by `load`, and as `PlatformException.details` when
-`EzoicRewardedAd.load` fails.
+[Privacy & Consent](#privacy--consent)). It arrives:
+
+- as `code` on `EzoicBannerError`, `EzoicNativeAdError` and
+  `EzoicOutstreamAdError` (the ad views' `onError` callbacks);
+- as `code` on the `EzoicInstreamAdError` thrown by `EzoicInstreamAd.load`;
+- as `PlatformException.details` when `EzoicInterstitialAd.load` or
+  `EzoicRewardedAd.load` fails. (`EzoicInterstitialAdError` is only thrown by
+  `show()`.)
 
 ```dart
+// Ad views
 onError: (error) {
   if (error.code == EzoicErrorCode.consentRequired) {
     // Ask for consent again, e.g. EzoicAds.presentConsentIfRequired().
   }
 },
+
+// Interstitial / rewarded loads
+try {
+  final ad = await EzoicInterstitialAd.load('12345');
+  await ad.show();
+} on PlatformException catch (e) {
+  if (e.details == EzoicErrorCode.consentRequired) {
+    // Consent is still required.
+  }
+}
 ```
 
 ## API

@@ -133,7 +133,11 @@ final class AlreadyPresenting extends EzoicConsentOutcome {
 /// no TC string, which Google treats as limited ads.
 ///
 /// [code] is the native `EzoicError` code, or `-1` when the plugin had no
-/// foreground Activity / view controller to present from.
+/// foreground Activity / view controller to present from (or the platform
+/// call failed). Code `1001` (not initialized) writes nothing, and `-1` never
+/// reaches the CMP: after either, ads stay gated and fail with
+/// [EzoicErrorCode.consentRequired]; call `EzoicAds.presentConsentIfRequired`
+/// again once a screen is showing.
 final class Failed extends EzoicConsentOutcome {
   final int code;
   final String message;
