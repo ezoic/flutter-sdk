@@ -285,7 +285,7 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
         }
         result.success(null)
       }.onFailure { e ->
-        result.error("EzoicAds", e.message ?: "Rewarded ad failed to load", e.toString())
+        result.error("EzoicAds", e.message ?: "Rewarded ad failed to load", (e as? EzoicError)?.code ?: e.toString())
       }
     }
   }
@@ -394,7 +394,7 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
         }
         result.success(null)
       }.onFailure { e ->
-        result.error("EzoicAds", e.message ?: "Interstitial ad failed to load", e.toString())
+        result.error("EzoicAds", e.message ?: "Interstitial ad failed to load", (e as? EzoicError)?.code ?: e.toString())
       }
     }
   }

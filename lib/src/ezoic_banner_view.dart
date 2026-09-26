@@ -4,10 +4,14 @@ import 'package:flutter/services.dart';
 
 import 'ezoic_ad_collapse.dart';
 import 'ezoic_banner_size.dart';
+import 'ezoic_consent.dart';
 
 /// Error delivered to [EzoicBannerView.onError] when a banner fails to load.
 class EzoicBannerError {
   final String message;
+
+  /// Native `EzoicError` code. [EzoicErrorCode.consentRequired] (5001) means
+  /// GDPR applies and the user has not made a consent choice yet.
   final int code;
   const EzoicBannerError(this.message, this.code);
 }

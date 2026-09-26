@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import 'ezoic_consent.dart';
+
 /// A reward earned by the user for completing a rewarded ad.
 ///
 /// The values mirror the reward configured on the GAM rewarded ad unit.
@@ -30,6 +32,9 @@ class EzoicReward {
 /// Error delivered to [EzoicRewardedAd.onFailedToShow] when presentation fails.
 class EzoicRewardedAdError {
   final String message;
+
+  /// Native `EzoicError` code. [EzoicErrorCode.consentRequired] (5001) means
+  /// GDPR applies and the user has not made a consent choice yet.
   final int code;
   const EzoicRewardedAdError(this.message, this.code);
 }

@@ -1,9 +1,14 @@
 import 'package:flutter/services.dart';
 
+import 'ezoic_consent.dart';
+
 /// Error delivered to [EzoicInterstitialAd.onFailedToShow] and thrown by
 /// [EzoicInterstitialAd.show] when presentation fails.
 class EzoicInterstitialAdError {
   final String message;
+
+  /// Native `EzoicError` code. [EzoicErrorCode.consentRequired] (5001) means
+  /// GDPR applies and the user has not made a consent choice yet.
   final int code;
   const EzoicInterstitialAdError(this.message, this.code);
 }

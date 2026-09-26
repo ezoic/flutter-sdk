@@ -5,11 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'ezoic_ad_collapse.dart';
+import 'ezoic_consent.dart';
 
 /// Error delivered to [EzoicOutstreamAdView.onError] when an outstream ad fails
 /// to load.
 class EzoicOutstreamAdError {
   final String message;
+
+  /// Native `EzoicError` code. [EzoicErrorCode.consentRequired] (5001) means
+  /// GDPR applies and the user has not made a consent choice yet.
   final int code;
   const EzoicOutstreamAdError(this.message, this.code);
 }
