@@ -93,12 +93,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
         autoTrackPageviews: args["autoTrackPageviews"] as? Bool ?? true,
         cmpEnabled: args["cmpEnabled"] as? Bool ?? true
       )
-      let autoPresentConsent = args["autoPresentConsent"] as? Bool ?? true
+      let shouldAutoPresent = args["autoPresentConsent"] as? Bool ?? true
       EzoicAds.shared.initialize(with: config) { r in
         switch r {
         case .success:
           result(nil)
-          if autoPresentConsent { Self.autoPresentConsent(debug: config.debugEnabled) }
+          if shouldAutoPresent { Self.autoPresentConsent(debug: config.debugEnabled) }
         case .failure(let e): result(FlutterError(code: "EzoicAds", message: e.localizedDescription, details: e.code))
         }
       }
@@ -186,19 +186,23 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     }
   }
 
-  /// The key window's root view controller, walked up to the top-most
-  /// presented one.
+  /// The key window's root view controller (preferring foreground-active
+  /// scenes), walked up to the top-most presented one that isn't being
+  /// dismissed.
   private static func topViewController() -> UIViewController? {
-    let windows = UIApplication.shared.connectedScenes
-      .compactMap { $0 as? UIWindowScene }
-      .flatMap { $0.windows }
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let active = scenes.filter { $0.activationState == .foregroundActive }
+    let windows = (active.isEmpty ? scenes : active).flatMap { $0.windows }
     let window = windows.first { $0.isKeyWindow } ?? windows.first
     var top = window?.rootViewController
-    while let presented = top?.presentedViewController {
+    while let presented = top?.presentedViewController, !presented.isBeingDismissed {
       top = presented
     }
     return top
   }
+
+  private static let unrecognizedOutcome: [String: Any] =
+    ["type": "failed", "code": -1, "message": "Unrecognized outcome"]
 
   private static func consentOutcomeMap(_ outcome: ConsentOutcome) -> [String: Any] {
     switch outcome {
@@ -207,14 +211,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     case .alreadyDecided:
       return ["type": "alreadyDecided"]
     case .decided(let decision):
-      let name: String
       switch decision {
-      case .acceptAll: name = "acceptAll"
-      case .rejectAll: name = "rejectAll"
-      case .custom: name = "custom"
-      @unknown default: name = "unknown"
+      case .acceptAll: return ["type": "decided", "decision": "acceptAll"]
+      case .rejectAll: return ["type": "decided", "decision": "rejectAll"]
+      case .custom: return ["type": "decided", "decision": "custom"]
+      @unknown default: return unrecognizedOutcome
       }
-      return ["type": "decided", "decision": name]
     case .dismissed:
       return ["type": "dismissed"]
     case .alreadyPresenting:
@@ -222,7 +224,7 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     case .failed(let error):
       return ["type": "failed", "code": error.code, "message": error.localizedDescription]
     @unknown default:
-      return ["type": "failed", "code": -1, "message": "Unrecognized outcome"]
+      return unrecognizedOutcome
     }
   }
 

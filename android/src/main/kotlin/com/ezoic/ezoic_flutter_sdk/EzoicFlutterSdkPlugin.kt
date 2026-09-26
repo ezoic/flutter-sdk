@@ -166,12 +166,12 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
           autoTrackPageviews = call.argument<Boolean>("autoTrackPageviews") ?: true,
           cmpEnabled = call.argument<Boolean>("cmpEnabled") ?: true
         )
-        val autoPresentConsent = call.argument<Boolean>("autoPresentConsent") ?: true
+        val shouldAutoPresent = call.argument<Boolean>("autoPresentConsent") ?: true
         EzoicAds.instance.initialize(app, config) { r ->
           r.onSuccess {
             result.success(null)
-            if (autoPresentConsent) mainHandler.post { autoPresentConsent(config.debugEnabled) }
-          }.onFailure { e -> result.error("EzoicAds", e.message, e.toString()) }
+            if (shouldAutoPresent) mainHandler.post { autoPresentConsent(config.debugEnabled) }
+          }.onFailure { e -> result.error("EzoicAds", e.message, (e as? EzoicError)?.code ?: e.toString()) }
         }
       }
       "setGDPRConsent" -> {
