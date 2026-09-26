@@ -155,7 +155,9 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
           subjectToCOPPA = call.argument<Boolean>("subjectToCOPPA") ?: false,
           requestATTBeforeAds = call.argument<Boolean>("requestATTBeforeAds") ?: true,
           debugEnabled = call.argument<Boolean>("debugEnabled") ?: false,
-          testMode = call.argument<Boolean>("testMode") ?: false
+          testMode = call.argument<Boolean>("testMode") ?: false,
+          autoTrackPageviews = call.argument<Boolean>("autoTrackPageviews") ?: true,
+          cmpEnabled = call.argument<Boolean>("cmpEnabled") ?: true
         )
         EzoicAds.instance.initialize(app, config) { r ->
           r.onSuccess { result.success(null) }

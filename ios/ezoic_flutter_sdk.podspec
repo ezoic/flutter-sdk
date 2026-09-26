@@ -17,7 +17,7 @@ module as `EzoicAdsSDKBinary`.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.dependency 'EzoicAdsSDK', '~> 1.11.0'
+  s.dependency 'EzoicAdsSDK', '~> 1.13.0'
   s.dependency 'Google-Mobile-Ads-SDK', '~> 12.0'
   s.platform = :ios, '15.0'
 

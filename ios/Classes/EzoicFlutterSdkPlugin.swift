@@ -89,7 +89,9 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
         subjectToCOPPA: args["subjectToCOPPA"] as? Bool ?? false,
         requestATTBeforeAds: args["requestATTBeforeAds"] as? Bool ?? true,
         debugEnabled: args["debugEnabled"] as? Bool ?? false,
-        testMode: args["testMode"] as? Bool ?? false
+        testMode: args["testMode"] as? Bool ?? false,
+        autoTrackPageviews: args["autoTrackPageviews"] as? Bool ?? true,
+        cmpEnabled: args["cmpEnabled"] as? Bool ?? true
       )
       EzoicAds.shared.initialize(with: config) { r in
         switch r {
