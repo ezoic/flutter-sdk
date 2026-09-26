@@ -5,7 +5,8 @@
 * The consent dialog is presented automatically once after `initialize` succeeds (`EzoicConfiguration.autoPresentConsent`, default `true`).
 * New consent API: `EzoicAds.presentConsentIfRequired()`, `presentConsentSettings()` (wire it to a persistent "Privacy settings" entry point, as TCF requires), `isConsentRequired()` and `resetConsent()`, with the `EzoicConsentOutcome` sealed class and `EzoicConsentDecision`.
 * `EzoicAds.trackPageview([screen])` labels pageviews (and the ads on that screen) per route; `EzoicConfiguration.autoTrackPageviews` (default `true`) turns off the native SDK's own host-screen pageviews.
-* Android: rewarded and interstitial load failures now carry the native `EzoicError` code in `PlatformException.details` (previously the error's string form), matching iOS.
+* Android: `initialize`, rewarded load and interstitial load failures now carry the native `EzoicError` code in `PlatformException.details` (previously the error's string form), matching iOS.
+* iOS: the plugin podspec declares `static_framework = true`, so the template `use_frameworks!` Podfile works without `:linkage => :static`.
 * `setGDPRConsent` must now be called before `initialize` on every launch (or set `cmpEnabled: false`) for the built-in CMP to stand down.
 * README: requirements, git installation, initialization, consent, pageview labelling and error codes.
 
