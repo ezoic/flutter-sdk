@@ -1,3 +1,14 @@
+## 1.13.0
+
+* Bump native Ezoic Ads SDK pins to 1.13.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.13.0`; iOS `EzoicAdsSDK ~> 1.13.0`). Requires iOS 15.0+ and Xcode 26+.
+* Built-in IAB TCF 2.4 consent dialog for users in GDPR regions (`EzoicConfiguration.cmpEnabled`, default `true`; set `false` if you run another CMP). In GDPR regions ad loads wait for a consent decision and fail with `EzoicErrorCode.consentRequired` (5001) if none is made.
+* The consent dialog is presented automatically once after `initialize` succeeds (`EzoicConfiguration.autoPresentConsent`, default `true`).
+* New consent API: `EzoicAds.presentConsentIfRequired()`, `presentConsentSettings()` (wire it to a persistent "Privacy settings" entry point, as TCF requires), `isConsentRequired()` and `resetConsent()`, with the `EzoicConsentOutcome` sealed class and `EzoicConsentDecision`.
+* `EzoicAds.trackPageview([screen])` labels pageviews (and the ads on that screen) per route; `EzoicConfiguration.autoTrackPageviews` (default `true`) turns off the native SDK's own host-screen pageviews.
+* Android: rewarded and interstitial load failures now carry the native `EzoicError` code in `PlatformException.details` (previously the error's string form), matching iOS.
+* `setGDPRConsent` must now be called before `initialize` on every launch (or set `cmpEnabled: false`) for the built-in CMP to stand down.
+* README: requirements, git installation, initialization, consent, pageview labelling and error codes.
+
 ## 1.11.1
 
 * Pin the native iOS SDK to 1.11.x. Native 1.13.0 introduces a built-in consent dialog that this wrapper cannot yet configure; it will be adopted in wrapper 1.13.0.
