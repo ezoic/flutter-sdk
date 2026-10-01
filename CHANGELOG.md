@@ -1,3 +1,9 @@
+## 1.13.1
+
+* Bump native Ezoic Ads SDK pins to 1.13.1 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.13.1`; iOS `EzoicAdsSDK ~> 1.13.1`).
+* iOS: Prebid header-bidding fills (including every `testMode` bid) now render at their real size; the native SDK previously left them as an invisible 1x1 creative.
+* iOS: the native XCFramework no longer embeds its own copy of PrebidMobile and Google Mobile Ads, removing the `Class … is implemented in both` launch warnings and ~10 MB from app binaries. `PrebidMobile` is now pinned to 3.2.1 transitively.
+
 ## 1.13.0
 
 * Bump native Ezoic Ads SDK pins to 1.13.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.13.0`; iOS `EzoicAdsSDK ~> 1.13.0`). Requires iOS 15.0+ and Xcode 26+.
