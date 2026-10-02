@@ -1,3 +1,8 @@
+## 1.13.2
+
+* Bump native Ezoic Ads SDK pins to 1.13.2 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.13.2`; iOS `EzoicAdsSDK ~> 1.13.2`).
+* Header-bidding requests now identify Google Mobile Ads and its runtime version as the display manager (OpenRTB `imp.displaymanager` / `imp.displaymanagerver`).
+
 ## 1.13.1
 
 * Bump native Ezoic Ads SDK pins to 1.13.1 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.13.1`; iOS `EzoicAdsSDK ~> 1.13.1`).
