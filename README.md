@@ -7,7 +7,7 @@ both 1.13.x.
 
 ## Requirements
 
-- iOS 15.0+, built with Xcode 26+.
+- iOS 15.0+, built with Xcode 26.2+.
 - Android `minSdk` 24+.
 - Flutter 3.19+ (Dart 3.3+).
 
@@ -21,7 +21,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.13.2
+      ref: v1.15.0
 ```
 
 **iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
