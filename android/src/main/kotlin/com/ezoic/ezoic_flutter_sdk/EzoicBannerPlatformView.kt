@@ -37,6 +37,9 @@ class EzoicBannerPlatformView(
     val collapseOnNoFill = (params["collapseOnNoFill"] as? Boolean) ?: true
     val banner = EzoicBannerView(context, adUnitId)
     banner.collapseOnNoFill = collapseOnNoFill
+    // Absent keys stay null: the native banner then follows the server.
+    banner.refreshIntervalSeconds = (params["refreshIntervalSeconds"] as? Number)?.toInt()
+    banner.refreshMaxCount = (params["refreshMaxCount"] as? Number)?.toInt()
     banner.listener = object : EzoicBannerViewListener {
       override fun onBannerLoaded(b: EzoicBannerView) { channel.invokeMethod("onLoad", null) }
       override fun onBannerLoadFailed(b: EzoicBannerView, error: EzoicError) {

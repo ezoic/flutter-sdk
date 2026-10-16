@@ -1,3 +1,9 @@
+## 1.16.0
+
+* Bump native Ezoic Ads SDK pins to 1.16.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.16.0`; iOS `EzoicAdsSDK ~> 1.16.0`).
+* `EzoicBannerView` adds optional `refreshIntervalSeconds` (0 = off, minimum 30) and `refreshMaxCount` (0 = no limit, maximum 100). Leave them `null` to follow the Ezoic server setting; banner refresh is off unless the server or the app turns it on.
+* Ad loading timeouts, retry limits and full-screen ad expiry can now be tuned from Ezoic's servers, within safe limits; without server settings the behavior matches 1.15.0. Invalid-request and missing-app-id errors now stop a load instead of retrying.
+
 ## 1.15.0
 
 * Bump native Ezoic Ads SDK pins to 1.15.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.15.0`; iOS `EzoicAdsSDK ~> 1.15.0`).

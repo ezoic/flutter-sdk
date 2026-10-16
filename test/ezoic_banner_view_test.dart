@@ -234,5 +234,39 @@ void main() {
       final params = androidView.creationParams as Map;
       expect(params['collapseOnNoFill'], isTrue);
     });
+
+    testWidgets('omits refresh overrides when unset so the server decides',
+        (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: EzoicBannerView(adUnitIdentifier: '12345'),
+        ),
+      );
+
+      final androidView = tester.widget<AndroidView>(find.byType(AndroidView));
+      final params = androidView.creationParams as Map;
+      expect(params.containsKey('refreshIntervalSeconds'), isFalse);
+      expect(params.containsKey('refreshMaxCount'), isFalse);
+    });
+
+    testWidgets('passes refresh overrides, including 0, in creationParams',
+        (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: EzoicBannerView(
+            adUnitIdentifier: '12345',
+            refreshIntervalSeconds: 0,
+            refreshMaxCount: 10,
+          ),
+        ),
+      );
+
+      final androidView = tester.widget<AndroidView>(find.byType(AndroidView));
+      final params = androidView.creationParams as Map;
+      expect(params['refreshIntervalSeconds'], 0);
+      expect(params['refreshMaxCount'], 10);
+    });
   });
 }

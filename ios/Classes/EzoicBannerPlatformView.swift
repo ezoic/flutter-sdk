@@ -26,6 +26,9 @@ class EzoicBannerPlatformView: NSObject, FlutterPlatformView, EzoicBannerViewDel
     let sizes = (params?["size"] as? String ?? "").split(separator: ",").map { String($0) }
     let view = EzoicBannerView(adUnitIdentifier: adUnitId)
     view.collapseOnNoFill = (params?["collapseOnNoFill"] as? Bool) ?? true
+    // Absent keys stay nil: the native banner then follows the server.
+    view.refreshIntervalSeconds = (params?["refreshIntervalSeconds"] as? NSNumber)?.intValue
+    view.refreshMaxCount = (params?["refreshMaxCount"] as? NSNumber)?.intValue
     view.delegate = self
     view.translatesAutoresizingMaskIntoConstraints = false
     container.addSubview(view)
