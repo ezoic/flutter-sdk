@@ -1,3 +1,9 @@
+## 1.15.0
+
+* Bump native Ezoic Ads SDK pins to 1.15.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.15.0`; iOS `EzoicAdsSDK ~> 1.15.0`).
+* Google Mobile Ads moves to 25.2.0 on Android and 13.x on iOS (Google Mobile Ads 22.x for Android is past Google's sunset date). iOS builds need Xcode 26.2 or later.
+* Header-bidding targeting is attached only when the bid clears the floor of each waterfall step, and impression reporting adds click counts, no-fill and creative size.
+
 ## 1.13.2
 
 * Bump native Ezoic Ads SDK pins to 1.13.2 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.13.2`; iOS `EzoicAdsSDK ~> 1.13.2`).
