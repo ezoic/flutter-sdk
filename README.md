@@ -3,7 +3,7 @@
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
 native SDKs: `EzoicAdsSDK` on iOS and `com.ezoic.sdk:ezoic-ads-sdk` on Android,
-both 1.13.x.
+both 1.16.x.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.15.0
+      ref: v1.16.0
 ```
 
 **iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
@@ -314,6 +314,21 @@ EzoicBannerView(
 `onSizeChange` reports the displayed creative size in dp/pt after a successful
 load, or `0 × 0` when the view collapses. Set `collapseOnNoFill: false` to keep
 the reserved size on a no-fill.
+
+Banner refresh is off unless Ezoic's server enables it for the placement. To
+control it from the app, pass `refreshIntervalSeconds` (0 = off, minimum 30)
+and/or `refreshMaxCount` (refreshes per load, 0 = no limit, maximum 100); leave
+them `null` (the default) to follow the server. Both are read when the banner
+loads. The countdown only runs while at least half of the banner is on screen
+and the app is in the foreground.
+
+```dart
+EzoicBannerView(
+  adUnitIdentifier: '12345',
+  refreshIntervalSeconds: 60,
+  refreshMaxCount: 10,
+)
+```
 
 ## Native Ads
 
