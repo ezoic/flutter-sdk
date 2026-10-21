@@ -97,6 +97,7 @@ class EzoicNativeAdPlatformView(
         val adView = buildTemplate(gmaAd)
         container.removeAllViews()
         container.addView(adView)
+        nativeAd.registerView(adView)
         channel.invokeMethod("onLoad", null)
       }
 

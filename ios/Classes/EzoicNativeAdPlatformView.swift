@@ -64,6 +64,7 @@ class EzoicNativeAdPlatformView: NSObject, FlutterPlatformView, EzoicNativeAdDel
         // as soon as the NativeAdView is displayed, is delivered.
         ad.delegate = self
         self.render(gmaAd)
+        if let adView = self.adView { ad.registerView(adView) }
         self.channel.invokeMethod("onLoad", arguments: nil)
       case .failure(let error):
         self.channel.invokeMethod(
