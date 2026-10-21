@@ -1,3 +1,10 @@
+## 1.17.0
+
+* Bump native Ezoic Ads SDK pins to 1.17.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.17.0`; iOS `EzoicAdsSDK ~> 1.17.0`).
+* `EzoicNativeAdView` now registers its rendered ad view with the native SDK, so native ads are reported as viewed (at least half on screen for one continuous second). No app changes needed.
+* Ad reporting is more complete: viewability for every format (interstitial and rewarded at display), an outcome for every demand attempt including no-fills, Amazon fills, and the floor that filled. Full-screen ads and returning from the background no longer count as new pageviews.
+* Known limitation: a `trackPageview(screen)` label for the launch screen that arrives more than ~1 s after `initialize` completes (outside a consent prompt) records a second launch pageview. Label the launch screen before `initialize` or as soon as it completes.
+
 ## 1.16.0
 
 * Bump native Ezoic Ads SDK pins to 1.16.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.16.0`; iOS `EzoicAdsSDK ~> 1.16.0`).

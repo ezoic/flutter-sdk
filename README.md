@@ -3,7 +3,7 @@
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
 native SDKs: `EzoicAdsSDK` on iOS and `com.ezoic.sdk:ezoic-ads-sdk` on Android,
-both 1.16.x.
+both 1.17.x.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.16.0
+      ref: v1.17.0
 ```
 
 **iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
