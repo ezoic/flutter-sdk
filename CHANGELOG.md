@@ -1,3 +1,10 @@
+## 1.18.0
+
+* Bump native Ezoic Ads SDK pins to 1.18.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.18.0`; iOS `EzoicAdsSDK ~> 1.18.0`).
+* `EzoicNativeAdView` now renders with the native SDKs' shared template (`EzoicNativeAdTemplateView`), so native ads look the same across Swift, Kotlin, React Native, Flutter and Capacitor apps and gain an "Ad" attribution badge.
+* New `adStyle: EzoicNativeAdStyle` parameter restyles the template: background, corner radius, padding, text colors and sizes, call-to-action colors and radius, media height and the ad badge text and colors. Changing it re-renders the ad without reloading. See "Styling native ads" in the README.
+* The native SDKs now report an outcome for every rewarded ad load.
+
 ## 1.17.0
 
 * Bump native Ezoic Ads SDK pins to 1.17.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.17.0`; iOS `EzoicAdsSDK ~> 1.17.0`).

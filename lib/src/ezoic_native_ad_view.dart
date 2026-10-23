@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'ezoic_consent.dart';
+import 'ezoic_native_ad_style.dart';
 
 /// Error delivered to [EzoicNativeAdView.onError] when a native ad fails to
 /// load.
@@ -97,10 +98,10 @@ void attachEzoicNativeAdChannel(
 
 /// An Ezoic native ad, embedded via a platform view.
 ///
-/// The native SDK loads a native ad and renders it in an SDK-built template
-/// `NativeAdView` (Android `com.google.android.gms.ads.nativead.NativeAdView`,
-/// iOS Google Mobile Ads `NativeAdView`), forwarding the lifecycle callbacks to
-/// the supplied handlers.
+/// The native SDK loads a native ad and renders it in its template (an "Ad"
+/// label, icon, headline, advertiser, media, body and call-to-action button),
+/// styled by [adStyle], forwarding the lifecycle callbacks to the supplied
+/// handlers.
 ///
 /// Platform views fill their parent's constraints, so size the ad by wrapping
 /// it in a [SizedBox] (or another constrained parent):
@@ -118,6 +119,10 @@ class EzoicNativeAdView extends StatefulWidget {
   /// The Ezoic ad unit identifier. Crosses the bridge as a string and is
   /// coerced to a native `Int`.
   final String adUnitIdentifier;
+
+  /// Colors, text sizes, corner radius and more for the ad template. A change
+  /// re-renders the ad that is showing without loading a new one.
+  final EzoicNativeAdStyle adStyle;
 
   /// Called when the native ad successfully loads.
   final VoidCallback? onLoad;
@@ -140,6 +145,7 @@ class EzoicNativeAdView extends StatefulWidget {
   const EzoicNativeAdView({
     super.key,
     required this.adUnitIdentifier,
+    this.adStyle = const EzoicNativeAdStyle(),
     this.onLoad,
     this.onError,
     this.onImpression,
@@ -155,12 +161,26 @@ class EzoicNativeAdView extends StatefulWidget {
 class _EzoicNativeAdViewState extends State<EzoicNativeAdView> {
   static const String _viewType = 'com.ezoic/ezoic_native_ad_view';
 
+  MethodChannel? _channel;
+
   Map<String, dynamic> get _creationParams => {
         'adUnitIdentifier': widget.adUnitIdentifier,
+        'adStyle': widget.adStyle.toMap(),
       };
+
+  @override
+  void didUpdateWidget(EzoicNativeAdView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.adStyle != oldWidget.adStyle) {
+      unawaited(_channel
+          ?.invokeMethod<void>('setStyle', widget.adStyle.toMap())
+          .catchError((_) {}));
+    }
+  }
 
   void _onPlatformViewCreated(int id) {
     final channel = MethodChannel('com.ezoic/ezoic_native_ad_view_$id');
+    _channel = channel;
     attachEzoicNativeAdChannel(
       channel,
       onLoad: () => widget.onLoad?.call(),

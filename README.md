@@ -3,7 +3,7 @@
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
 native SDKs: `EzoicAdsSDK` on iOS and `com.ezoic.sdk:ezoic-ads-sdk` on Android,
-both 1.17.x.
+both 1.18.x.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.17.0
+      ref: v1.18.0
 ```
 
 **iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
@@ -357,6 +357,50 @@ SizedBox(
 
 The template and the underlying native ad are built and destroyed by the plugin
 with the platform view's lifecycle — no manual `destroy()` call is required.
+
+### Styling native ads
+
+Pass `adStyle` to restyle the template to match your app. Every field is
+optional; leave one out to keep the default (colors left out follow the system
+light/dark theme). Sizes are in dp/pt. Rebuilding the widget with a different
+`adStyle` re-renders the ad in place without reloading it.
+
+```dart
+SizedBox(
+  height: 380,
+  child: EzoicNativeAdView(
+    adUnitIdentifier: '12345',
+    adStyle: const EzoicNativeAdStyle(
+      backgroundColor: Color(0xFF1E1E2E),
+      cornerRadius: 16,
+      headlineTextColor: Colors.white,
+      bodyTextColor: Color(0xFFCDD6F4),
+      callToActionBackgroundColor: Color(0xFF89B4FA),
+      callToActionTextColor: Color(0xFF1E1E2E),
+      callToActionCornerRadius: 22,
+      adLabelText: 'Sponsored',
+    ),
+  ),
+)
+```
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `backgroundColor` | transparent | Card background |
+| `cornerRadius` | `0` | Card corners; content is clipped to them |
+| `padding` | `8` | Inner padding |
+| `headlineTextColor` / `headlineTextSize` | theme / `16` | Headline is bold |
+| `advertiserTextColor` / `advertiserTextSize` | theme / `12` | |
+| `bodyTextColor` / `bodyTextSize` | theme / `14` | |
+| `callToActionBackgroundColor` / `callToActionTextColor` | platform button | |
+| `callToActionTextSize` / `callToActionCornerRadius` | `14` / `4` | Radius applies when a background color is set |
+| `mediaHeight` | `175` | Minimum `120`, as Google requires for native media |
+| `adLabelText` | `"Ad"` | The ad attribution badge; cannot be blank |
+| `adLabelTextColor` / `adLabelBackgroundColor` | `#202124` / `#FBBC04` | |
+
+The platform view does not size itself, so give it enough height for the
+template: about 330 with the defaults, plus any extra padding, larger text or a
+two-line headline.
 
 ## Outstream Video
 
