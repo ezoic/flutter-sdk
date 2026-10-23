@@ -21,7 +21,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.19.0
+      ref: v1.19.1
 ```
 
 **iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
