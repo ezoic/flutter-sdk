@@ -155,7 +155,30 @@ void main() {
       expect(androidView.viewType, 'com.ezoic/ezoic_native_ad_view');
       final params = androidView.creationParams as Map;
       expect(params['adUnitIdentifier'], '12345');
+      expect(params['adStyle'], isEmpty);
       expect(androidView.creationParamsCodec, isA<StandardMessageCodec>());
+    });
+
+    testWidgets('passes adStyle in creationParams', (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: EzoicNativeAdView(
+            adUnitIdentifier: '12345',
+            adStyle: EzoicNativeAdStyle(
+              cornerRadius: 12,
+              backgroundColor: Color(0xFF101010),
+            ),
+          ),
+        ),
+      );
+
+      final androidView = tester.widget<AndroidView>(find.byType(AndroidView));
+      final params = androidView.creationParams as Map;
+      expect(params['adStyle'], {
+        'backgroundColor': 0xFF101010,
+        'cornerRadius': 12.0,
+      });
     });
   });
 }
