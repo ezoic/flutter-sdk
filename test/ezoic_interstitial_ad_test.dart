@@ -239,4 +239,104 @@ void main() {
       expect(failed!.code, 3);
     });
   });
+
+  group('EzoicInterstitialAd.destroy', () {
+    test('releases the native ad of an unshown ad, once', () async {
+      final calls = <MethodCall>[];
+      setMainHandler((call) async {
+        calls.add(call);
+        return null;
+      });
+
+      final ad = await EzoicInterstitialAd.load('123');
+      ad.destroy();
+      ad.destroy();
+      await pumpEventQueue();
+
+      final destroys = calls.where((c) => c.method == 'destroyInterstitialAd').toList();
+      expect(destroys, hasLength(1));
+      expect((destroys.single.arguments as Map)['adUnitIdentifier'], '123');
+    });
+
+    test('lets the same ad unit load again after destroy', () async {
+      final loaded = <String>{};
+      setMainHandler((call) async {
+        final id = (call.arguments as Map)['adUnitIdentifier'] as String;
+        if (call.method == 'loadInterstitialAd') {
+          if (!loaded.add(id)) {
+            throw PlatformException(code: 'EzoicAds', message: 'already loaded/loading');
+          }
+        } else if (call.method == 'destroyInterstitialAd') {
+          loaded.remove(id);
+        }
+        return null;
+      });
+
+      final first = await EzoicInterstitialAd.load('123');
+      first.destroy();
+      final second = await EzoicInterstitialAd.load('123');
+      addTearDown(second.destroy);
+      expect(second.adUnitIdentifier, '123');
+    });
+
+    test('swallows a native destroy failure', () async {
+      setMainHandler((call) async {
+        if (call.method == 'destroyInterstitialAd') {
+          throw PlatformException(code: 'EzoicAds', message: 'gone');
+        }
+        return null;
+      });
+
+      final ad = await EzoicInterstitialAd.load('123');
+      ad.destroy();
+      await pumpEventQueue();
+    });
+
+    test('skips the native call once the ad was shown', () async {
+      final calls = <MethodCall>[];
+      setMainHandler((call) async {
+        calls.add(call);
+        return call.method == 'showInterstitialAd' ? null : null;
+      });
+
+      final ad = await EzoicInterstitialAd.load('123');
+      await ad.show();
+      ad.destroy();
+      await pumpEventQueue();
+
+      expect(calls.where((c) => c.method == 'destroyInterstitialAd'), isEmpty);
+    });
+
+    test('skips the native call after a terminal event', () async {
+      final calls = <MethodCall>[];
+      setMainHandler((call) async {
+        calls.add(call);
+        return null;
+      });
+
+      for (final event in ['onDismissed', 'onFailedToShow']) {
+        final ad = await EzoicInterstitialAd.load('123');
+        await sendEvent('123', event, {'message': 'x', 'code': 1});
+        ad.destroy();
+      }
+      await pumpEventQueue();
+
+      expect(calls.where((c) => c.method == 'destroyInterstitialAd'), isEmpty);
+    });
+
+    test('a spent ad does not detach a newer ad for the same unit', () async {
+      setMainHandler((call) async => null);
+
+      final old = await EzoicInterstitialAd.load('123');
+      await sendEvent('123', 'onDismissed');
+      final current = await EzoicInterstitialAd.load('123');
+      addTearDown(current.destroy);
+      var shown = false;
+      current.onShown = () => shown = true;
+
+      old.destroy();
+      await sendEvent('123', 'onShown');
+      expect(shown, isTrue);
+    });
+  });
 }

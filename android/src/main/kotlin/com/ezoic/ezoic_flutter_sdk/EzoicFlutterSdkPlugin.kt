@@ -110,11 +110,13 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     channel.setMethodCallHandler(null)
     rewardedChannels.values.forEach { it.setMethodCallHandler(null) }
     rewardedChannels.clear()
+    rewardedAds.values.forEach { it.listener = null; it.destroy() }
     rewardedAds.clear()
     pendingShows.clear()
     loadingRewarded.clear()
     interstitialChannels.values.forEach { it.setMethodCallHandler(null) }
     interstitialChannels.clear()
+    interstitialAds.values.forEach { it.listener = null; it.destroy() }
     interstitialAds.clear()
     pendingInterstitialShows.clear()
     loadingInterstitial.clear()
@@ -205,8 +207,10 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       }
       "loadRewardedAd" -> handleLoadRewardedAd(call, result)
       "showRewardedAd" -> handleShowRewardedAd(call, result)
+      "destroyRewardedAd" -> handleDestroyRewardedAd(call, result)
       "loadInterstitialAd" -> handleLoadInterstitialAd(call, result)
       "showInterstitialAd" -> handleShowInterstitialAd(call, result)
+      "destroyInterstitialAd" -> handleDestroyInterstitialAd(call, result)
       "loadInstreamAd" -> handleLoadInstreamAd(call, result)
       "getInstreamNextAdTagUrl" -> handleGetInstreamNextAdTagUrl(call, result)
       "reportInstreamImpression" -> handleReportInstreamImpression(call, result)
@@ -317,6 +321,19 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     }
   }
 
+  /** Releases a loaded, unshown rewarded ad so the unit can be loaded again. */
+  private fun handleDestroyRewardedAd(call: MethodCall, result: MethodChannel.Result) {
+    val adUnitIdentifier = call.argument<String>("adUnitIdentifier")
+    // A presenting ad is released by its dismiss / failed-to-show listener.
+    if (adUnitIdentifier != null && !pendingShows.containsKey(adUnitIdentifier)) {
+      rewardedAds.remove(adUnitIdentifier)?.let {
+        it.listener = null
+        it.destroy()
+      }
+    }
+    result.success(null)
+  }
+
   private fun makeListener(adUnitIdentifier: String) =
     object : EzoicRewardedAdListenerAdapter() {
       override fun onRewardedAdShown(rewardedAd: EzoicRewardedAd) {
@@ -420,6 +437,18 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     currentActivity.runOnUiThread {
       ad.show(currentActivity)
     }
+  }
+
+  /** Releases a loaded, unshown interstitial so the unit can be loaded again. */
+  private fun handleDestroyInterstitialAd(call: MethodCall, result: MethodChannel.Result) {
+    val adUnitIdentifier = call.argument<String>("adUnitIdentifier")
+    if (adUnitIdentifier != null && !pendingInterstitialShows.containsKey(adUnitIdentifier)) {
+      interstitialAds.remove(adUnitIdentifier)?.let {
+        it.listener = null
+        it.destroy()
+      }
+    }
+    result.success(null)
   }
 
   private fun makeInterstitialListener(adUnitIdentifier: String) =

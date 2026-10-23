@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 /// Error delivered to [EzoicInterstitialAd.onFailedToShow] and thrown by
@@ -48,6 +50,9 @@ class EzoicInterstitialAd {
       MethodChannel('com.ezoic/ezoic_flutter_sdk');
 
   late final MethodChannel _eventChannel;
+  bool _spent = false;
+  bool _destroyed = false;
+  bool _released = false;
 
   EzoicInterstitialAd._(this.adUnitIdentifier) {
     _eventChannel =
@@ -78,6 +83,7 @@ class EzoicInterstitialAd {
         'showInterstitialAd',
         {'adUnitIdentifier': adUnitIdentifier},
       );
+      _spent = true;
     } on PlatformException catch (e) {
       throw EzoicInterstitialAdError(
         e.message ?? 'Unknown error',
@@ -86,8 +92,27 @@ class EzoicInterstitialAd {
     }
   }
 
-  /// Releases the event handler. Safe to call multiple times.
+  /// Releases the ad: drops the event handler and, if the ad was loaded but
+  /// never shown, discards the native ad so a new one can be loaded for this
+  /// unit. Safe to call multiple times.
   void destroy() {
+    if (_destroyed) return;
+    _destroyed = true;
+    final wasSpent = _spent;
+    _release();
+    if (!wasSpent) {
+      unawaited(_channel.invokeMethod<void>(
+        'destroyInterstitialAd',
+        {'adUnitIdentifier': adUnitIdentifier},
+      ).catchError((Object _) {}));
+    }
+  }
+
+  // Event channels are named per ad unit, so a later instance for the same
+  // unit owns the handler once this one has released it.
+  void _release() {
+    if (_released) return;
+    _released = true;
     _eventChannel.setMethodCallHandler(null);
   }
 
@@ -103,7 +128,8 @@ class EzoicInterstitialAd {
           (args['code'] as num?)?.toInt() ?? 0,
         ));
         // Failure to show is terminal — the native ad is single-use.
-        destroy();
+        _spent = true;
+        _release();
         break;
       case 'onImpression':
         onImpression?.call();
@@ -114,7 +140,8 @@ class EzoicInterstitialAd {
       case 'onDismissed':
         onDismissed?.call();
         // Dismissal is terminal — the native ad is single-use.
-        destroy();
+        _spent = true;
+        _release();
         break;
     }
   }

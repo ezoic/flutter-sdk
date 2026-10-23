@@ -136,10 +136,14 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       handleLoadRewardedAd(call, result)
     case "showRewardedAd":
       handleShowRewardedAd(call, result)
+    case "destroyRewardedAd":
+      handleDestroyRewardedAd(call, result)
     case "loadInterstitialAd":
       handleLoadInterstitialAd(call, result)
     case "showInterstitialAd":
       handleShowInterstitialAd(call, result)
+    case "destroyInterstitialAd":
+      handleDestroyInterstitialAd(call, result)
     case "loadInstreamAd":
       handleLoadInstreamAd(call, result)
     case "getInstreamNextAdTagUrl":
@@ -281,6 +285,18 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     }
   }
 
+  /// Releases a loaded, unshown rewarded ad so the unit can be loaded again.
+  private func handleDestroyRewardedAd(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    let args = call.arguments as? [String: Any]
+    // A presenting ad is released by its dismiss / failed-to-present delegate call.
+    if let adUnitIdentifier = args?["adUnitIdentifier"] as? String, let id = Int(adUnitIdentifier),
+       pendingShows[id] == nil, let ad = rewardedAds.removeValue(forKey: id) {
+      ad.delegate = nil
+      ad.destroy()
+    }
+    result(nil)
+  }
+
   private func emit(_ id: Int, _ method: String, _ args: Any? = nil) {
     rewardedChannels[id]?.invokeMethod(method, arguments: args)
   }
@@ -335,6 +351,17 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     // settled from the delegate (dismiss = resolve, failed-to-present = reject).
     // Presenting from nil lets GMA use the application's top view controller.
     ad.show(from: nil)
+  }
+
+  /// Releases a loaded, unshown interstitial so the unit can be loaded again.
+  private func handleDestroyInterstitialAd(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    let args = call.arguments as? [String: Any]
+    if let adUnitIdentifier = args?["adUnitIdentifier"] as? String, let id = Int(adUnitIdentifier),
+       pendingInterstitialShows[id] == nil, let ad = interstitialAds.removeValue(forKey: id) {
+      ad.delegate = nil
+      ad.destroy()
+    }
+    result(nil)
   }
 
   private func emitInterstitial(_ id: Int, _ method: String, _ args: Any? = nil) {
