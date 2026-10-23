@@ -61,6 +61,9 @@ await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
 | `autoPresentConsent` | `true` | After `initialize` succeeds, present the consent dialog once if it is required |
 
 `initialize` throws a `PlatformException` if the native SDK fails to start.
+It is safe to call again, including after a hot restart while the native SDK is
+still initialized: repeat calls share the first call's result, and a failed call
+is retried by the next one.
 
 ## Privacy & Consent
 

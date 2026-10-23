@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'ezoic_configuration.dart';
@@ -13,12 +16,51 @@ class EzoicAds {
   static const MethodChannel _channel =
       MethodChannel('com.ezoic/ezoic_flutter_sdk');
 
+  /// Native `EzoicError.alreadyInitialized`, delivered in
+  /// [PlatformException.details].
+  static const int _alreadyInitialized = 1002;
+
+  static Future<void>? _initialization;
+
   /// Initializes the SDK with the given [configuration].
   ///
   /// Resolves once the native SDK reports initialization success and rejects
   /// (throws a [PlatformException]) on failure.
-  static Future<void> initialize(EzoicConfiguration configuration) async {
-    await _channel.invokeMethod<void>('initialize', configuration.toMap());
+  ///
+  /// Safe to call more than once: concurrent and later calls share the first
+  /// call's result (the first [configuration] wins), a hot restart resolves
+  /// even though the native SDK is already initialized, and a failed call is
+  /// retried by the next one.
+  static Future<void> initialize(EzoicConfiguration configuration) {
+    final pending = _initialization;
+    if (pending != null) return pending;
+    final future = _initializeNative(configuration);
+    _initialization = future;
+    future.then((_) {}, onError: (Object _) {
+      if (identical(_initialization, future)) _initialization = null;
+    });
+    return future;
+  }
+
+  static Future<void> _initializeNative(
+      EzoicConfiguration configuration) async {
+    try {
+      await _channel.invokeMethod<void>('initialize', configuration.toMap());
+    } on PlatformException catch (e) {
+      if (e.details != _alreadyInitialized) rethrow;
+      // The native SDK outlives a hot restart, so it is already up; only the
+      // consent prompt the native success path runs is owed.
+      if (configuration.autoPresentConsent) {
+        unawaited(presentConsentIfRequired());
+      }
+    }
+  }
+
+  /// Forgets a completed or in-flight [initialize] so the next call reaches
+  /// the platform again.
+  @visibleForTesting
+  static void resetInitializationForTesting() {
+    _initialization = null;
   }
 
   /// Sets GDPR consent. When [applies] is `true`, [consentString] should carry
