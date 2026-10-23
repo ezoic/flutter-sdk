@@ -53,4 +53,9 @@ class EzoicBannerPlatformView: NSObject, FlutterPlatformView, EzoicBannerViewDel
   func bannerView(_ bannerView: EzoicBannerView, didChangeSize size: CGSize) {
     channel.invokeMethod("onSizeChange", arguments: ["width": size.width, "height": size.height])
   }
+
+  // Flutter releases the platform view on dispose; iOS has no dispose callback.
+  deinit {
+    banner?.destroy()
+  }
 }

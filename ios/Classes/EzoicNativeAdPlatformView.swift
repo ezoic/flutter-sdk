@@ -56,7 +56,10 @@ class EzoicNativeAdPlatformView: NSObject, FlutterPlatformView, EzoicNativeAdDel
     if loadStarted { return }
     loadStarted = true
     EzoicNativeAd.load(adUnitIdentifier: adUnitId) { [weak self] result in
-      guard let self = self else { return }
+      guard let self = self else {
+        if case .success(let ad) = result { ad.destroy() }
+        return
+      }
       switch result {
       case .success(let ad):
         self.ezoicNativeAd = ad
