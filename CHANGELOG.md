@@ -1,3 +1,11 @@
+## 1.19.0
+
+* Bump native Ezoic Ads SDK pins to 1.19.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.19.0`; iOS `EzoicAdsSDK ~> 1.19.0`). The native SDKs now send COPPA to Google Mobile Ads, IMA and Amazon, keep the device id only while consent allows storage, send a launch pageview for apps that initialize after their first screen, and no longer hold ad requests for 2 s waiting on a pageview id. Android banner and outstream views no longer destroy themselves when scrolled out of a list and reattached.
+* `EzoicAds.initialize` no longer fails with "already initialized" (1002) after a hot restart. Concurrent calls share one native initialize, and a failed initialize can be retried.
+* `destroy()` on a rewarded or interstitial ad that was never shown now releases the native ad, so the same ad unit can load again.
+* `destroy()` on an ad that was already shown no longer stops event delivery to a newer ad for the same unit.
+* `EzoicBannerView` now destroys its native banner when removed (Android and iOS).
+
 ## 1.18.0
 
 * Bump native Ezoic Ads SDK pins to 1.18.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.18.0`; iOS `EzoicAdsSDK ~> 1.18.0`).
