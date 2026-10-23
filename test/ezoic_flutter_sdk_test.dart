@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';
@@ -20,6 +22,7 @@ void main() {
   tearDown(() {
     calls.clear();
     messenger.setMockMethodCallHandler(mainChannel, null);
+    EzoicAds.resetInitializationForTesting();
   });
 
   group('EzoicAds.initialize', () {
@@ -32,6 +35,57 @@ void main() {
       expect(args['autoTrackPageviews'], true);
       expect(args['cmpEnabled'], true);
       expect(args['autoPresentConsent'], true);
+    });
+
+    const config = EzoicConfiguration(domain: 'example.com');
+    PlatformException alreadyInitialized() => PlatformException(
+        code: 'EzoicAds', message: 'Ezoic SDK is already initialized.', details: 1002);
+
+    test('resolves when native is already initialized (hot restart)', () async {
+      mockMain((call) {
+        if (call.method == 'initialize') throw alreadyInitialized();
+        return {'type': 'notRequired'};
+      });
+      await EzoicAds.initialize(config);
+      await pumpEventQueue();
+      expect(calls.map((c) => c.method), ['initialize', 'presentConsentIfRequired']);
+    });
+
+    test('skips the consent prompt on re-init when autoPresentConsent is false', () async {
+      mockMain((call) => throw alreadyInitialized());
+      await EzoicAds.initialize(
+          const EzoicConfiguration(domain: 'example.com', autoPresentConsent: false));
+      await pumpEventQueue();
+      expect(calls.map((c) => c.method), ['initialize']);
+    });
+
+    test('shares one native call between concurrent and later calls', () async {
+      final release = Completer<void>();
+      messenger.setMockMethodCallHandler(mainChannel, (call) async {
+        calls.add(call);
+        await release.future;
+        return null;
+      });
+      final first = EzoicAds.initialize(config);
+      final second = EzoicAds.initialize(config);
+      expect(identical(first, second), isTrue);
+      release.complete();
+      await Future.wait([first, second]);
+      await EzoicAds.initialize(config);
+      expect(calls, hasLength(1));
+    });
+
+    test('retries after a failed initialize', () async {
+      var attempts = 0;
+      mockMain((call) {
+        if (++attempts == 1) {
+          throw PlatformException(code: 'EzoicAds', message: 'network', details: 4001);
+        }
+        return null;
+      });
+      await expectLater(EzoicAds.initialize(config), throwsA(isA<PlatformException>()));
+      await EzoicAds.initialize(config);
+      expect(calls.map((c) => c.method), ['initialize', 'initialize']);
     });
   });
 

@@ -21,7 +21,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.18.0
+      ref: v1.19.0
 ```
 
 **iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
@@ -61,6 +61,9 @@ await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
 | `autoPresentConsent` | `true` | After `initialize` succeeds, present the consent dialog once if it is required |
 
 `initialize` throws a `PlatformException` if the native SDK fails to start.
+It is safe to call again, including after a hot restart while the native SDK is
+still initialized: repeat calls share the first call's result, and a failed call
+is retried by the next one.
 
 ## Privacy & Consent
 

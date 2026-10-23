@@ -30,6 +30,7 @@ class EzoicBannerPlatformView(
 
   private val container = FrameLayout(context)
   private val channel = MethodChannel(messenger, "com.ezoic/ezoic_banner_view_$viewId")
+  private var banner: EzoicBannerView? = null
 
   init {
     val adUnitId = (params["adUnitIdentifier"] as? String)?.toIntOrNull() ?: 0
@@ -54,9 +55,16 @@ class EzoicBannerPlatformView(
       }
     }
     container.addView(banner)
+    this.banner = banner
     if (sizes.isEmpty()) banner.loadAd() else banner.loadAd(sizes)
   }
 
   override fun getView(): View = container
-  override fun dispose() {}
+
+  override fun dispose() {
+    banner?.listener = null
+    banner?.destroy()
+    banner = null
+    container.removeAllViews()
+  }
 }
