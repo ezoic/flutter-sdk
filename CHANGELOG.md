@@ -1,3 +1,7 @@
+## 1.19.1
+
+* Bump native Ezoic Ads SDK pins to 1.19.1. Android release builds made with Android Gradle Plugin 9 (the default for new Flutter apps) no longer crash at startup with "Failed to create an instance of androidx.work.impl.WorkDatabase". On iOS, consent set with `setGDPRConsent` / `setGPPConsent` now reaches Google Mobile Ads, IMA and Amazon.
+
 ## 1.19.0
 
 * Bump native Ezoic Ads SDK pins to 1.19.0 (Android `com.ezoic.sdk:ezoic-ads-sdk:1.19.0`; iOS `EzoicAdsSDK ~> 1.19.0`). The native SDKs now send COPPA to Google Mobile Ads, IMA and Amazon, keep the device id only while consent allows storage, send a launch pageview for apps that initialize after their first screen, and no longer hold ad requests for 2 s waiting on a pageview id. Android banner and outstream views no longer destroy themselves when scrolled out of a list and reattached.
