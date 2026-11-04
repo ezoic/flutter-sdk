@@ -72,11 +72,11 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.ezoic.sdk:ezoic-ads-sdk:1.19.1")
+    implementation("com.ezoic.sdk:ezoic-ads-sdk:1.21.0")
     // The native-ad template references GMA `NativeAdView`/`MediaView`. The SDK
     // POM scopes play-services-ads at runtime (`implementation`), so those types
     // are not otherwise on the wrapper's compile classpath.
-    compileOnly("com.google.android.gms:play-services-ads:25.2.0")
+    compileOnly("com.google.android.gms:play-services-ads:25.5.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }
