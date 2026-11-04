@@ -13,7 +13,7 @@ let package = Package(
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
         // Native Ezoic Ads SDK (pre-built XCFramework + Prebid / GMA / APS
         // transitive packages). Kept in lockstep with the plugin version.
-        .package(url: "https://github.com/ezoic/ezoic-swift-sdk-dist.git", from: "1.20.0")
+        .package(url: "https://github.com/ezoic/ezoic-swift-sdk-dist.git", from: "1.21.0")
     ],
     targets: [
         .target(

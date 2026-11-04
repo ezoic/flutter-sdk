@@ -2,13 +2,13 @@
 
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
-native SDKs: `EzoicAdsSDK` 1.20.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
-1.19.1 on Android.
+native SDKs: `EzoicAdsSDK` 1.21.x on iOS (Swift Package Manager; CocoaPods
+gets 1.19.1, see below) and `com.ezoic.sdk:ezoic-ads-sdk` 1.21.0 on Android.
 
 ## Requirements
 
 - iOS 15.0+, built with Xcode 26.2+.
-- Android `minSdk` 24+.
+- Android `minSdk` 24+, Kotlin 2.2+.
 - Flutter 3.41+ (Dart 3.11+).
 
 ## Installation
@@ -21,7 +21,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.20.0
+      ref: v1.21.0
 ```
 
 **iOS.** Set your app's minimum deployment target to iOS 15.0 (Runner target >
@@ -45,7 +45,7 @@ platform :ios, '15.0'
 ```
 
 With CocoaPods the plugin accepts `EzoicAdsSDK` `~> 1.19, >= 1.19.1`, so you
-get native 1.19.1 until 1.20.0 is published to CocoaPods trunk. CocoaPods trunk
+get native 1.19.1, the newest `EzoicAdsSDK` on CocoaPods trunk. CocoaPods trunk
 becomes read-only on December 2, 2026; native SDK releases after that ship only
 through Swift Package Manager.
 
@@ -63,6 +63,10 @@ buyers whose ID is missing (Amazon, InMobi, Magnite, PubMatic and other
 non-Google buyers) can't use SKAdNetwork attribution.
 
 **Android.** The native SDK is resolved from Maven Central; nothing else to add.
+The plugin compiles against Google Mobile Ads 25.5.0, whose Kotlin metadata
+needs Kotlin 2.2 or newer; new Flutter apps already meet this. If your
+`android/settings.gradle.kts` pins `org.jetbrains.kotlin.android` to 2.1.x,
+raise it to 2.2.0 or newer.
 
 ## Initialize
 
