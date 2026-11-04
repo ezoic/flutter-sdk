@@ -345,20 +345,11 @@ EzoicBannerView(
 load, or `0 × 0` when the view collapses. Set `collapseOnNoFill: false` to keep
 the reserved size on a no-fill.
 
-Banner refresh is off unless Ezoic's server enables it for the placement. To
-control it from the app, pass `refreshIntervalSeconds` (0 = off, minimum 30)
-and/or `refreshMaxCount` (refreshes per load, 0 = no limit, maximum 100); leave
-them `null` (the default) to follow the server. Both are read when the banner
-loads. The countdown only runs while at least half of the banner is on screen
-and the app is in the foreground.
-
-```dart
-EzoicBannerView(
-  adUnitIdentifier: '12345',
-  refreshIntervalSeconds: 60,
-  refreshMaxCount: 10,
-)
-```
+Banners refresh automatically every 30 seconds, or at the interval Ezoic sets
+for the ad unit; you do not set a refresh timer in the app
+(`refreshIntervalSeconds` and `refreshMaxCount` are deprecated and ignored). The
+countdown only runs while at least half of the banner is on screen and the app
+is in the foreground.
 
 ## Native Ads
 

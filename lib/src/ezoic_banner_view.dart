@@ -85,18 +85,12 @@ class EzoicBannerView extends StatefulWidget {
   /// no-fill.
   final bool collapseOnNoFill;
 
-  /// Seconds between automatic refreshes.
-  ///
-  /// `null` (the default) follows the Ezoic server setting. `0` turns refresh
-  /// off; values below 30 are raised to 30. Read when the banner loads. The
-  /// countdown only runs while at least half of the banner is on screen and
-  /// the app is in the foreground.
+  /// Ignored. Ezoic sets the banner refresh interval.
+  @Deprecated('Ignored: Ezoic sets the banner refresh interval.')
   final int? refreshIntervalSeconds;
 
-  /// Maximum automatic refreshes per load.
-  ///
-  /// `null` (the default) follows the Ezoic server setting. `0` means no
-  /// limit; values above 100 are capped at 100. Read when the banner loads.
+  /// Ignored. Ezoic sets the maximum number of banner refreshes.
+  @Deprecated('Ignored: Ezoic sets the banner refresh limit.')
   final int? refreshMaxCount;
 
   /// Called when the banner successfully loads.
@@ -128,7 +122,9 @@ class EzoicBannerView extends StatefulWidget {
     required this.adUnitIdentifier,
     this.size = EzoicBannerSize.mediumRectangle,
     this.collapseOnNoFill = true,
+    @Deprecated('Ignored: Ezoic sets the banner refresh interval.')
     this.refreshIntervalSeconds,
+    @Deprecated('Ignored: Ezoic sets the banner refresh limit.')
     this.refreshMaxCount,
     this.onLoad,
     this.onError,
@@ -152,11 +148,6 @@ class _EzoicBannerViewState extends State<EzoicBannerView> {
         'adUnitIdentifier': widget.adUnitIdentifier,
         'size': widget.size.toSizeString(),
         'collapseOnNoFill': widget.collapseOnNoFill,
-        // Sent only when set, so the native banner keeps null (server decides).
-        if (widget.refreshIntervalSeconds != null)
-          'refreshIntervalSeconds': widget.refreshIntervalSeconds,
-        if (widget.refreshMaxCount != null)
-          'refreshMaxCount': widget.refreshMaxCount,
       };
 
   void _onPlatformViewCreated(int id) {

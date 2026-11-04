@@ -1,3 +1,7 @@
+## Unreleased
+
+* `EzoicBannerView.refreshIntervalSeconds` and `refreshMaxCount` are deprecated and ignored: banners refresh every 30 seconds, or at the interval Ezoic sets for the ad unit. Remove them from your app.
+
 ## 1.20.0
 
 * iOS: Swift Package Manager support (`ios/ezoic_flutter_sdk/Package.swift`), Flutter's default from 3.44. With SwiftPM the plugin resolves `EzoicAdsSDK` 1.20.0+ from `https://github.com/ezoic/ezoic-swift-sdk-dist`. Your app's iOS deployment target must be 15.0 (new Flutter apps default to 13.0).
