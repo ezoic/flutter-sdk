@@ -235,7 +235,7 @@ void main() {
       expect(params['collapseOnNoFill'], isTrue);
     });
 
-    testWidgets('omits refresh overrides when unset so the server decides',
+    testWidgets('sends no refresh settings so Ezoic decides',
         (tester) async {
       await tester.pumpWidget(
         const Directionality(
@@ -250,14 +250,15 @@ void main() {
       expect(params.containsKey('refreshMaxCount'), isFalse);
     });
 
-    testWidgets('passes refresh overrides, including 0, in creationParams',
-        (tester) async {
+    testWidgets('ignores the deprecated refresh settings', (tester) async {
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
           child: EzoicBannerView(
             adUnitIdentifier: '12345',
+            // ignore: deprecated_member_use_from_same_package
             refreshIntervalSeconds: 0,
+            // ignore: deprecated_member_use_from_same_package
             refreshMaxCount: 10,
           ),
         ),
@@ -265,8 +266,8 @@ void main() {
 
       final androidView = tester.widget<AndroidView>(find.byType(AndroidView));
       final params = androidView.creationParams as Map;
-      expect(params['refreshIntervalSeconds'], 0);
-      expect(params['refreshMaxCount'], 10);
+      expect(params.containsKey('refreshIntervalSeconds'), isFalse);
+      expect(params.containsKey('refreshMaxCount'), isFalse);
     });
   });
 }
