@@ -1,6 +1,6 @@
 ## 1.21.0
 
-* Wraps native Ezoic Ads SDK 1.21.0 on iOS and Android (`com.ezoic.sdk:ezoic-ads-sdk:1.21.0`; Swift Package Manager resolves `EzoicAdsSDK` 1.21.0+). CocoaPods installs keep resolving native iOS from CocoaPods trunk, which stops at 1.19.1.
+* Wraps native Ezoic Ads SDK 1.21.0 on iOS and Android (`com.ezoic.sdk:ezoic-ads-sdk:1.21.0`; Swift Package Manager resolves `EzoicAdsSDK` 1.21.0+). CocoaPods installs keep resolving native iOS from CocoaPods trunk (1.19.1 until the final 1.20.0 release lands; 1.21.0 is not on trunk).
 * `EzoicBannerView.refreshIntervalSeconds` and `refreshMaxCount` are deprecated and ignored: banners refresh every 30 seconds, or at the interval Ezoic sets for the ad unit. Remove them from your app.
 * Android: InMobi now bids in Google Ad Manager auctions through GAM SDK Bidding; the native SDK bundles Google's InMobi adapter, nothing to configure. Google Mobile Ads is now 25.5.0 (was 25.2.0) and the native SDK is built with Kotlin 2.2.21. Your app needs Kotlin 2.2+: with Kotlin 2.1 the plugin fails to compile against Google Mobile Ads 25.5.0. New Flutter apps (Android Gradle Plugin 9) already meet this.
 * iOS (native 1.21.0, so Swift Package Manager builds): with `debugEnabled`, `EzoicAds.initialize` logs a warning when `Info.plist` has no `SKAdNetworkItems`, is missing Google's (`cstr6suwn9.skadnetwork`) or InMobi's (`wzmmz9fp6w.skadnetwork`) ID, or has uppercase IDs (Apple ignores them).

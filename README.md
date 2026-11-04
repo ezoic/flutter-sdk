@@ -3,7 +3,7 @@
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
 native SDKs: `EzoicAdsSDK` 1.21.x on iOS (Swift Package Manager; CocoaPods
-gets 1.19.1, see below) and `com.ezoic.sdk:ezoic-ads-sdk` 1.21.0 on Android.
+gets the trunk release, see below) and `com.ezoic.sdk:ezoic-ads-sdk` 1.21.0 on Android.
 
 ## Requirements
 
@@ -45,7 +45,7 @@ platform :ios, '15.0'
 ```
 
 With CocoaPods the plugin accepts `EzoicAdsSDK` `~> 1.19, >= 1.19.1`, so you
-get native 1.19.1, the newest `EzoicAdsSDK` on CocoaPods trunk. CocoaPods trunk
+get native 1.19.1 until 1.20.0 is published to CocoaPods trunk. CocoaPods trunk
 becomes read-only on December 2, 2026; native SDK releases after that ship only
 through Swift Package Manager.
 
