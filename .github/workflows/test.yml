@@ -17,3 +17,67 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+
+  ios:
+    name: ios (Flutter ${{ matrix.flutter }}, ${{ matrix.package-manager }})
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        flutter: [stable, 3.41.0]
+        package-manager: [spm, cocoapods]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ matrix.flutter != 'stable' && matrix.flutter || '' }}
+      - run: flutter --version
+      - name: Select package manager
+        run: |
+          if [ "${{ matrix.package-manager }}" = spm ]; then
+            flutter config --enable-swift-package-manager
+          else
+            flutter config --no-enable-swift-package-manager
+          fi
+      - name: Create app
+        working-directory: ${{ runner.temp }}
+        run: |
+          flutter create --platforms=ios --org com.ezoic.ci ezoic_ci_app
+          cd ezoic_ci_app
+          flutter pub add "ezoic_flutter_sdk:{path: $GITHUB_WORKSPACE}"
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/' ios/Runner.xcodeproj/project.pbxproj
+          cat > lib/main.dart <<'EOF'
+          import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';
+          import 'package:flutter/material.dart';
+
+          Future<void> main() async {
+            WidgetsFlutterBinding.ensureInitialized();
+            runApp(const MaterialApp(
+              home: Scaffold(
+                body: Center(child: EzoicBannerView(adUnitIdentifier: '12345')),
+              ),
+            ));
+            await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
+          }
+          EOF
+      - name: Build for simulator
+        working-directory: ${{ runner.temp }}/ezoic_ci_app
+        run: flutter build ios --simulator --debug --no-codesign
+      - name: Check resolved native SDK
+        working-directory: ${{ runner.temp }}/ezoic_ci_app/ios
+        run: |
+          if [ "${{ matrix.package-manager }}" = spm ]; then
+            test ! -e Pods && test ! -e Podfile.lock
+            python3 -c "
+          import json
+          pins = json.load(open('Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved'))['pins']
+          dist = [p for p in pins if p['identity'] == 'ezoic-swift-sdk-dist']
+          assert dist, 'ezoic-swift-sdk-dist not resolved'
+          for p in pins: print(p['identity'], p['state'].get('version'))
+          "
+          else
+            grep -E '^  - (EzoicAdsSDK|Google-Mobile-Ads-SDK|ezoic_flutter_sdk) \(' Podfile.lock
+            grep -qE '^  - EzoicAdsSDK \(' Podfile.lock
+          fi

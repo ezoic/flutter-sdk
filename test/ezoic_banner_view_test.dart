@@ -128,7 +128,7 @@ void main() {
       final handler = createEzoicBannerMethodCallHandler(
         onLoad: () => fired = true,
         onError: (_) => fired = true,
-        onSizeChange: (_, __) => fired = true,
+        onSizeChange: (_, _) => fired = true,
       );
 
       await handler(const MethodCall('somethingUnhandled'));

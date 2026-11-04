@@ -130,7 +130,7 @@ void main() {
         onClick: () => fired = true,
         onOpen: () => fired = true,
         onClose: () => fired = true,
-        onSizeChange: (_, __) => fired = true,
+        onSizeChange: (_, _) => fired = true,
       );
 
       await handler(const MethodCall('somethingUnhandled'));

@@ -99,12 +99,10 @@ class EzoicNativeAdStyle {
     };
     return {
       for (final e in colors.entries)
-        // `value` is the only ARGB accessor across the supported Flutter range.
-        // ignore: deprecated_member_use
-        if (e.value != null) e.key: e.value!.value,
+        if (e.value != null) e.key: e.value!.toARGB32(),
       for (final e in sizes.entries)
         if (e.value != null && e.value!.isFinite) e.key: e.value!,
-      if (adLabelText != null) 'adLabelText': adLabelText!,
+      'adLabelText': ?adLabelText,
     };
   }
 
