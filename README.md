@@ -35,6 +35,15 @@ The native SDK and Google Mobile Ads ship as static binaries, so the plugin
 must link statically; its podspec declares `static_framework = true`, so this
 works with the template's plain `use_frameworks!`.
 
+Add your Google Ad Manager application ID, `NSUserTrackingUsageDescription`
+and the SKAdNetwork IDs to `ios/Runner/Info.plist`; see
+[Required App Setup](https://docs.ezoic.com/docs/mobileapps/ios/#required-app-setup-for-ads-to-serve).
+`SKAdNetworkItems` needs every ID in Ezoic's combined list,
+[docs.ezoic.com/skadnetworkids.xml](https://docs.ezoic.com/skadnetworkids.xml),
+not just Google's: Apple reads these only from the app's `Info.plist`, and
+buyers whose ID is missing (Amazon, InMobi, Magnite, PubMatic and other
+non-Google buyers) can't use SKAdNetwork attribution.
+
 **Android.** The native SDK is resolved from Maven Central; nothing else to add.
 
 ## Initialize
