@@ -2,14 +2,14 @@
 
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
-native SDKs: `EzoicAdsSDK` on iOS and `com.ezoic.sdk:ezoic-ads-sdk` on Android,
-both 1.18.x.
+native SDKs: `EzoicAdsSDK` 1.20.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
+1.19.1 on Android.
 
 ## Requirements
 
 - iOS 15.0+, built with Xcode 26.2+.
 - Android `minSdk` 24+.
-- Flutter 3.19+ (Dart 3.3+).
+- Flutter 3.41+ (Dart 3.11+).
 
 ## Installation
 
@@ -21,15 +21,33 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.19.1
+      ref: v1.20.0
 ```
 
-**iOS.** Set the iOS 15 platform in your app's `ios/Podfile`, then run
+**iOS.** Set your app's minimum deployment target to iOS 15.0 (Runner target >
+General > Minimum Deployments in Xcode, which sets `IPHONEOS_DEPLOYMENT_TARGET`
+in `ios/Runner.xcodeproj`; new Flutter apps default to 13.0). The plugin
+supports both Swift Package Manager and CocoaPods.
+
+*Swift Package Manager* is Flutter's default from 3.44; on 3.41 to 3.43 turn
+it on with `flutter config --enable-swift-package-manager`. Nothing else to
+add: `flutter run` / `flutter build ios` resolves the native SDK from
+[ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist).
+
+*CocoaPods* is used when Swift Package Manager is off
+(`flutter config --no-enable-swift-package-manager`, or
+`enable-swift-package-manager: false` under `flutter: config:` in your app's
+`pubspec.yaml`). Set the iOS 15 platform in your app's `ios/Podfile`, then run
 `pod install` in `ios/` (or let `flutter run` do it):
 
 ```ruby
 platform :ios, '15.0'
 ```
+
+With CocoaPods the plugin accepts `EzoicAdsSDK` `~> 1.19, >= 1.19.1`, so you
+get native 1.19.1 until 1.20.0 is published to CocoaPods trunk. CocoaPods trunk
+becomes read-only on December 2, 2026; native SDK releases after that ship only
+through Swift Package Manager.
 
 The native SDK and Google Mobile Ads ship as static binaries, so the plugin
 must link statically; its podspec declares `static_framework = true`, so this

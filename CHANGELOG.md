@@ -1,3 +1,10 @@
+## 1.20.0
+
+* iOS: Swift Package Manager support (`ios/ezoic_flutter_sdk/Package.swift`), Flutter's default from 3.44. With SwiftPM the plugin resolves `EzoicAdsSDK` 1.20.0+ from `https://github.com/ezoic/ezoic-swift-sdk-dist`. Your app's iOS deployment target must be 15.0 (new Flutter apps default to 13.0).
+* CocoaPods is still supported. The podspec now accepts `EzoicAdsSDK` `~> 1.19, >= 1.19.1`, so CocoaPods builds get native 1.19.1 until 1.20.0 is published to CocoaPods trunk. Trunk becomes read-only on December 2, 2026; later native SDK releases ship only through Swift Package Manager.
+* Native iOS SDK 1.20.0 changes only dependencies: Prebid Mobile 3.4.1 and Amazon APS 5.6.6 from their official Swift packages, Google Mobile Ads 13.x. No API changes. Android stays on `com.ezoic.sdk:ezoic-ads-sdk:1.19.1`.
+* Requires Flutter 3.41+ (Dart 3.11+), up from Flutter 3.19 (Dart 3.3).
+
 ## 1.19.1
 
 * Bump native Ezoic Ads SDK pins to 1.19.1. Android release builds made with Android Gradle Plugin 9 (the default for new Flutter apps) no longer crash at startup with "Failed to create an instance of androidx.work.impl.WorkDatabase". On iOS, consent set with `setGDPRConsent` / `setGPPConsent` now reaches Google Mobile Ads, IMA and Amazon.

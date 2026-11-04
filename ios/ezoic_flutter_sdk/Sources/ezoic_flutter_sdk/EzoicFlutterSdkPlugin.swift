@@ -1,6 +1,10 @@
 import Flutter
 import UIKit
+#if canImport(EzoicAdsSDKBinary)
 import EzoicAdsSDKBinary
+#else
+import EzoicAdsSDK
+#endif
 
 public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
   private var messenger: FlutterBinaryMessenger?
