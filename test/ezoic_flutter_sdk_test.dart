@@ -37,6 +37,21 @@ void main() {
       expect(args['autoPresentConsent'], true);
     });
 
+    test('sends appPaid as null by default', () async {
+      mockMain((_) => null);
+      await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
+      final args = calls.single.arguments as Map;
+      expect(args.containsKey('appPaid'), isTrue);
+      expect(args['appPaid'], isNull);
+    });
+
+    test('forwards appPaid', () async {
+      mockMain((_) => null);
+      await EzoicAds.initialize(
+          const EzoicConfiguration(domain: 'example.com', appPaid: true));
+      expect((calls.single.arguments as Map)['appPaid'], true);
+    });
+
     const config = EzoicConfiguration(domain: 'example.com');
     PlatformException alreadyInitialized() => PlatformException(
         code: 'EzoicAds', message: 'Ezoic SDK is already initialized.', details: 1002);
@@ -178,6 +193,21 @@ void main() {
       expect(reward, isNotNull);
       expect(reward!.type, '');
       expect(reward.amount, 0);
+    });
+  });
+
+  group('EzoicAds.setAppContent', () {
+    test('sends language and genre', () async {
+      mockMain((_) => null);
+      await EzoicAds.setAppContent(language: 'en', genre: 'News');
+      expect(calls.single.method, 'setAppContent');
+      expect(calls.single.arguments, {'language': 'en', 'genre': 'News'});
+    });
+
+    test('with no arguments sends nulls, which clears it', () async {
+      mockMain((_) => null);
+      await EzoicAds.setAppContent();
+      expect(calls.single.arguments, {'language': null, 'genre': null});
     });
   });
 }

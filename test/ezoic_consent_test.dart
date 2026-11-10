@@ -96,6 +96,15 @@ void main() {
       expect(calls.map((c) => c.method).toSet(), {'isConsentRequired'});
     });
 
+    test('isPrivacyOptionsRequired passes true, false and null through',
+        () async {
+      for (final value in [true, false, null]) {
+        mockMain((_) => value);
+        expect(await EzoicAds.isPrivacyOptionsRequired(), value);
+      }
+      expect(calls.map((c) => c.method).toSet(), {'isPrivacyOptionsRequired'});
+    });
+
     test('resetConsent invokes the native method', () async {
       mockMain((_) => null);
       await EzoicAds.resetConsent();
