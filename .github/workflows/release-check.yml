@@ -1,0 +1,16 @@
+name: release-check
+
+# A release is a pushed vX.Y.Z tag; consumers of both packages pin to it.
+# This checks that the tag can actually be installed: both package versions
+# match it, the native pins agree, and the iOS SHA-256 pins match the
+# ezoic-swift-sdk-dist release assets CocoaPods builds download.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: tool/check_versions.sh --release
