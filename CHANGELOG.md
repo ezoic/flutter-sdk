@@ -1,3 +1,14 @@
+## 1.22.0 (unreleased)
+
+* Wraps native Ezoic Ads SDK 1.22.0 on iOS and Android (`com.ezoic.sdk:ezoic-ads-sdk:1.22.0`; Swift Package Manager resolves `EzoicAdsSDK` 1.22.0+).
+* iOS CocoaPods builds no longer use the frozen `EzoicAdsSDK` trunk pod. `pod install` downloads the native SDK's XCFrameworks from the [ezoic-swift-sdk-dist release](https://github.com/ezoic/ezoic-swift-sdk-dist/releases), checks their SHA-256, and installs the `PrebidMobile`, `Google-Mobile-Ads-SDK` and `AmazonPublisherServicesSDK` pods they link. CocoaPods builds therefore get the current native SDK again (they were on 1.19.1), and the first `pod install` needs network access to GitHub.
+* New sibling package [`ezoic_flutter_cmp_sdk`](ezoic_flutter_cmp_sdk/): the built-in CMP alone, for Ezoic publishers whose app doesn't use Ezoic ads. This package depends on it and re-exports its consent types (`EzoicConsentOutcome` and its cases, `EzoicConsentDecision`), so existing imports keep working. Use one entry point: `EzoicAds` already includes the CMP.
+* US-state privacy: in the 15 covered US states the built-in CMP shows a non-blocking "Privacy Preferences" notice once per launch until the user chooses, offers a "Do Not Sell My Information" choice, and writes the IAB GPP keys for the user's state. Ads never wait for it. Nothing to call; `cmpEnabled: false` turns it off with the rest of the CMP.
+* `presentConsentSettings()` is region-aware: in a covered US state it opens the US privacy settings (`Decided(acceptAll)` = not opted out, `Decided(rejectAll)` = opted out, `Dismissed` = closed without saving). `presentConsentIfRequired()` returns `NotRequired` there. No new outcome cases.
+* New `EzoicAds.isPrivacyOptionsRequired()` (`Future<bool?>`): whether to show a "Privacy choices" entry point that calls `presentConsentSettings()`.
+* New `EzoicAds.setAppContent({language, genre})` and `EzoicConfiguration.appPaid`, sent to bidders as OpenRTB `app.content` and `app.paid`.
+* `Failed(code, message)` keeps its shape. `code` is still the native error code (`1001`, `2001`, `4001`, `5002`); it is `-1` if a native error carries no code.
+
 ## 1.21.0
 
 * Wraps native Ezoic Ads SDK 1.21.0 on iOS and Android (`com.ezoic.sdk:ezoic-ads-sdk:1.21.0`; Swift Package Manager resolves `EzoicAdsSDK` 1.21.0+). CocoaPods installs keep resolving native iOS from CocoaPods trunk (1.19.1 until the final 1.20.0 release lands; 1.21.0 is not on trunk).

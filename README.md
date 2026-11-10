@@ -2,8 +2,10 @@
 
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
-native SDKs: `EzoicAdsSDK` 1.21.x on iOS (Swift Package Manager; CocoaPods
-gets the trunk release, see below) and `com.ezoic.sdk:ezoic-ads-sdk` 1.21.0 on Android.
+native SDKs: `EzoicAdsSDK` 1.22.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
+1.22.0 on Android. The built-in consent management (CMP) comes from the
+sibling package [`ezoic_flutter_cmp_sdk`](ezoic_flutter_cmp_sdk/), which this
+package depends on; apps that only need the CMP can use that package alone.
 
 ## Requirements
 
@@ -21,8 +23,11 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.21.0
+      ref: v1.22.0
 ```
+
+This also brings in `ezoic_flutter_cmp_sdk` from the same tag; don't add it to
+your `pubspec.yaml` as well (see [Standalone CMP](#standalone-cmp)).
 
 **iOS.** Set your app's minimum deployment target to iOS 15.0 (Runner target >
 General > Minimum Deployments in Xcode, which sets `IPHONEOS_DEPLOYMENT_TARGET`
@@ -44,10 +49,16 @@ add: `flutter run` / `flutter build ios` resolves the native SDK from
 platform :ios, '15.0'
 ```
 
-With CocoaPods the plugin accepts `EzoicAdsSDK` `~> 1.19, >= 1.19.1`, so you
-get native 1.19.1 until 1.20.0 is published to CocoaPods trunk. CocoaPods trunk
-becomes read-only on December 2, 2026; native SDK releases after that ship only
-through Swift Package Manager.
+With CocoaPods the plugin no longer uses the `EzoicAdsSDK` pod from CocoaPods
+trunk (which stopped at 1.19.1). `pod install` downloads the native SDK
+(`EzoicAdsSDKBinary.xcframework`, and `EzoicCmpSDKBinary.xcframework` through
+`ezoic_flutter_cmp_sdk`) from the
+[ezoic-swift-sdk-dist release](https://github.com/ezoic/ezoic-swift-sdk-dist/releases)
+for the pinned version and checks each file's SHA-256, so the first
+`pod install` needs network access to GitHub. It also installs the
+`PrebidMobile`, `Google-Mobile-Ads-SDK` and `AmazonPublisherServicesSDK` pods
+the native SDK links. CocoaPods builds get exactly the pinned native version;
+Swift Package Manager resolves 1.22.0 or a later 1.x release.
 
 The native SDK and Google Mobile Ads ship as static binaries, so the plugin
 must link statically; its podspec declares `static_framework = true`, so this
@@ -88,7 +99,8 @@ await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
 | `debugEnabled` | `false` | Verbose native logging |
 | `testMode` | `false` | Prebid debug and $0.00 Ezoic test ads on no-demand auctions (debug builds / simulators only) |
 | `autoTrackPageviews` | `true` | Let the native SDK record pageviews for the host screen on its own ([Pageview Tracking](#pageview-tracking)) |
-| `cmpEnabled` | `true` | Use the built-in TCF 2.4 consent dialog in GDPR regions ([Privacy & Consent](#privacy--consent)) |
+| `cmpEnabled` | `true` | Use the built-in CMP: the TCF 2.4 consent dialog in GDPR regions, the privacy notice and "Do Not Sell" choice in covered US states ([Privacy & Consent](#privacy--consent)) |
+| `appPaid` | `null` | Whether your app is a paid app, sent to bidders as `app.paid` (`true` = 1, `false` = 0); `null` sends nothing |
 | `autoPresentConsent` | `true` | After `initialize` succeeds, present the consent dialog once if it is required |
 
 `initialize` throws a `PlatformException` if the native SDK fails to start.
@@ -101,8 +113,10 @@ is retried by the next one.
 ### Built-in CMP (GDPR / TCF 2.4)
 
 The native SDK includes an IAB TCF 2.4 consent management platform. It is on by
-default (`cmpEnabled: true`) and only does anything for users in GDPR regions;
-elsewhere nothing is shown and ads load as before.
+default (`cmpEnabled: true`). In GDPR regions it shows the TCF consent dialog
+described here. In covered US states it shows a privacy notice instead (see
+[US-state privacy](#us-state-privacy)). Elsewhere nothing is shown and ads load
+as before.
 
 > **If your app already runs another CMP (UMP, OneTrust, ...) you _must_ set
 > `cmpEnabled: false`.** See [Using your own CMP](#using-your-own-cmp).
@@ -156,15 +170,26 @@ switch (outcome) {
 
 **A persistent "Privacy settings" entry point is required.** TCF policy
 requires users to be able to reopen the dialog and withdraw consent at any
-time, so wire `presentConsentSettings()` to a menu item or button that is
-always reachable:
+time, and US-state users need a way to opt out of the sale or sharing of their
+information. Wire `presentConsentSettings()` to a menu item or button that is
+always reachable whenever `isPrivacyOptionsRequired()` is `true`:
 
 ```dart
-TextButton(
-  onPressed: EzoicAds.presentConsentSettings,
-  child: const Text('Privacy settings'),
+FutureBuilder<bool?>(
+  future: EzoicAds.isPrivacyOptionsRequired(),
+  builder: (context, snapshot) => snapshot.data == true
+      ? TextButton(
+          onPressed: EzoicAds.presentConsentSettings,
+          child: const Text('Privacy choices'),
+        )
+      : const SizedBox.shrink(),
 )
 ```
+
+`isPrivacyOptionsRequired()` is `null` until the init request and the US-state
+configuration have loaded, so check it again later (e.g. when the screen is
+rebuilt) or always show the entry point: `presentConsentSettings()` returns
+`NotRequired` where there is nothing to show.
 
 `presentConsentIfRequired()` and `presentConsentSettings()` always complete
 with an `EzoicConsentOutcome`; they do not throw for consent results:
@@ -173,25 +198,54 @@ with an `EzoicConsentOutcome`; they do not throw for consent results:
 |---|---|
 | `NotRequired()` | GDPR doesn't apply, the built-in CMP is disabled (`cmpEnabled: false` or by Ezoic), another CMP owns consent, or consent is managed by the app (see [Manual consent](#manual-consent)) |
 | `AlreadyDecided()` | A still-valid decision is stored; no dialog shown |
-| `Decided(decision)` | The user chose `EzoicConsentDecision.acceptAll`, `rejectAll` or `custom`; the choice is saved |
-| `Dismissed()` | The dialog closed without a choice; ads stay gated for this session. This can happen without user action (the dialog failed to start, or `resetConsent()` ran while it was loading or open) |
+| `Decided(decision)` | The user chose `EzoicConsentDecision.acceptAll`, `rejectAll` or `custom`; the choice is saved. From the US privacy settings: `acceptAll` = not opted out, `rejectAll` = opted out |
+| `Dismissed()` | The dialog closed without a choice (US privacy settings: closed without saving); in GDPR regions ads stay gated for this session. This can happen without user action (the dialog failed to start, or `resetConsent()` ran while it was loading or open) |
 | `AlreadyPresenting()` | A consent dialog is already on screen, or one is being prepared with nothing on screen yet |
-| `Failed(code, message)` | The dialog couldn't be shown (e.g. network error); ads proceed as limited ads (see above). `code` is the native `EzoicError` code, or `-1` when the plugin had no foreground Activity / view controller (or the platform call itself failed). Exception: after `1001` (not initialized) or `-1` nothing is written and ads stay gated (fail with 5001); call `presentConsentIfRequired()` again once a screen is showing |
+| `Failed(code, message)` | The dialog couldn't be shown (e.g. network error); ads proceed as limited ads (see above). `code` is the native error code (`1001` not initialized, `2001` network, `4001` render, `5002` invalid consent), or `-1` when the plugin had no foreground Activity / view controller, the platform call itself failed, or the native error had no code. Exception: after `1001` (not initialized) or `-1` nothing is written and ads stay gated (fail with 5001); call `presentConsentIfRequired()` again once a screen is showing |
 
 - **`presentConsentSettings()`** always reopens the dialog in GDPR regions,
-  even if the user already decided. It returns `NotRequired` outside GDPR
-  regions, when `cmpEnabled` is `false`, when another CMP is present, or when
-  consent is managed by the app.
+  even if the user already decided. In covered US states it opens the US
+  privacy settings. It returns `NotRequired` elsewhere, when `cmpEnabled` is
+  `false`, when another CMP is present, or when consent is managed by the app.
+- **`isPrivacyOptionsRequired()`** (`Future<bool?>`) is `true` in a GDPR region
+  or a covered US state while the built-in CMP is in charge, `false`
+  otherwise, and `null` until the init request and the US-state configuration
+  have loaded (or when the server sent no consent information).
 - **`isConsentRequired()`** (`Future<bool?>`) is `null` until the init request
   completes, or when the server sent no consent information. It is `true`
   whenever GDPR applies and the built-in CMP is in charge (including after the
   user has decided) and `false` otherwise.
 - **`resetConsent()`** deletes the stored decision so the dialog shows again
-  (ads re-gate until the user decides). Keys written by another CMP are left
-  alone.
+  (ads re-gate until the user decides). The US-state choice is forgotten too,
+  and the US notice shows again at the next launch. Keys written by another
+  CMP are left alone.
 - Decisions are stored as standard `IABTCF_*` keys (`UserDefaults` on iOS,
   default `SharedPreferences` on Android), so Prebid, GAM and other IAB-aware
   SDKs read them as usual.
+
+### US-state privacy
+
+In the US states with consumer privacy laws that Ezoic's CMP covers
+(California, Colorado, Connecticut, Delaware, Florida, Iowa, Montana, Nebraska,
+New Hampshire, New Jersey, Oregon, Tennessee, Texas, Utah and Virginia), the
+built-in CMP behaves like Ezoic's web CMP. There is nothing to call:
+
+- **Notice.** Once per launch, until the user chooses, a "Privacy Preferences"
+  card slides up from the bottom of the screen with **Consent** and **Do Not
+  Sell My Information** buttons. It doesn't block the app, and an Ezoic anchor
+  ad on screen is hidden while it shows. English only.
+- **Choice.** **Do Not Sell My Information** opens the US privacy settings,
+  where the user can opt out of the sale or sharing of their information.
+  `presentConsentSettings()` opens the same screen, so your "Privacy choices"
+  entry point (above) covers it.
+- **Signals.** The choice is stored as the standard IAB GPP keys (`IABGPP_*`)
+  for the user's state, which Prebid and other IAB-aware SDKs read. After an
+  opt-out, Google Ad Manager requests ask for restricted data processing.
+- **Ads never wait** for the US notice; `presentConsentIfRequired()` returns
+  `NotRequired` in these states.
+
+The SDK doesn't write GPP keys when another CMP already wrote them, when you
+call `setGPPConsent`, or when `autoReadConsent` is `false`.
 
 ### Using your own CMP
 
@@ -222,10 +276,53 @@ those keys.
 
 ```dart
 await EzoicAds.setGDPRConsent(true, 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA');
-await EzoicAds.setGPPConsent('DBACNYA~...', '7');
+await EzoicAds.setGPPConsent('DBABBg~...', '8'); // e.g. California (usca)
 await EzoicAds.setSubjectToCOPPA(true);
 await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
 ```
+
+### Standalone CMP
+
+[`ezoic_flutter_cmp_sdk`](ezoic_flutter_cmp_sdk/) is the same built-in CMP
+without the ads SDK, for Ezoic publishers whose app doesn't show Ezoic ads. Its
+`EzoicCmp` class has the consent methods above with the same names and
+outcomes.
+
+**Use one, not both.** This package already includes the CMP through
+`EzoicAds`. If an app initializes both `EzoicAds` and `EzoicCmp`, `EzoicAds`
+takes over the same CMP and its stored decision. If your `pubspec.yaml` must
+list `ezoic_flutter_cmp_sdk` next to this package, pin it with
+`dependency_overrides` to the same tag. pub otherwise reports a version
+conflict, because this package already brings it in:
+
+```yaml
+dependencies:
+  ezoic_flutter_sdk:
+    git:
+      url: https://github.com/ezoic/flutter-sdk.git
+      ref: v1.22.0
+dependency_overrides:
+  ezoic_flutter_cmp_sdk:
+    git:
+      url: https://github.com/ezoic/flutter-sdk.git
+      ref: v1.22.0
+      path: ezoic_flutter_cmp_sdk
+```
+
+## App content for bidders
+
+Describe your app's content to bidders with `setAppContent`. Every later ad
+request carries it as OpenRTB `app.content`:
+
+```dart
+await EzoicAds.setAppContent(language: 'en', genre: 'News');
+```
+
+`language` is an ISO-639-1 two-letter code (other values are dropped with a
+native warning); `genre` is free text. Leave a field out (or `null`) to omit
+it; `setAppContent()` with neither clears it. It is safe to call before
+`initialize`. To tell bidders whether your app is paid, set
+`EzoicConfiguration.appPaid`.
 
 ## Pageview Tracking
 
@@ -314,8 +411,9 @@ try {
 - `initialize(EzoicConfiguration)` → `Future<void>`
 - `setGDPRConsent(bool applies, [String? consentString])`, `setGPPConsent([String? gppString, String? sectionIds])`, `setSubjectToCOPPA(bool)` → `Future<void>`
 - `trackPageview([String? screen])` → `Future<bool>`
+- `setAppContent({String? language, String? genre})` → `Future<void>`
 - `presentConsentIfRequired()`, `presentConsentSettings()` → `Future<EzoicConsentOutcome>`
-- `isConsentRequired()` → `Future<bool?>`
+- `isConsentRequired()`, `isPrivacyOptionsRequired()` → `Future<bool?>`
 - `resetConsent()` → `Future<void>`
 
 Types: `EzoicConfiguration`, `EzoicConsentOutcome` (`NotRequired`,
