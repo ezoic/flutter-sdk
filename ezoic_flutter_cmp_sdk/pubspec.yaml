@@ -33,4 +33,4 @@ flutter:
 ezoic:
   ios_sdk:
     version: 1.22.0
-    sha256: TODO-RELEASE
+    sha256: eec460f1eff7d82a46f412bf3fe63a5ed7ab90871d12375570927cba91ee0e40

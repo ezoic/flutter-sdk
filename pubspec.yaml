@@ -41,7 +41,7 @@ flutter:
 ezoic:
   ios_sdk:
     version: 1.22.0
-    sha256: TODO-RELEASE
+    sha256: dd375c1989ace9aa960502a860644177646399084a852d9617b9bd6c2ad0e52a
     pod_dependencies:
       PrebidMobile: "3.4.1"
       Google-Mobile-Ads-SDK: "~> 13.0"
