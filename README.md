@@ -602,3 +602,41 @@ await instream.destroy();
 Unlike the interstitial unit, `EzoicInstreamAd` is not single-use: keep the
 controller and reuse it across loads, then call `destroy()` when done.
 
+
+## Releasing
+
+Both packages ship from one annotated `vX.Y.Z` git tag at the same version
+(`ezoic_flutter_cmp_sdk` through `path:`). Consumers pin to the tag, so never
+move a published tag: cut a new version instead. Release in this order:
+
+1. **Native releases are published.** Both are needed:
+   - Maven Central has `com.ezoic.sdk:ezoic-ads-sdk:X.Y.Z` and
+     `com.ezoic.sdk:ezoic-cmp-sdk:X.Y.Z`.
+   - [ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist/releases)
+     has the `X.Y.Z` tag with all four zips:
+     `EzoicAdsSDK-X.Y.Z.xcframework.zip`,
+     `EzoicAdsSDK-X.Y.Z-cocoapods.xcframework.zip`,
+     `EzoicCmpSDK-X.Y.Z.xcframework.zip` and
+     `EzoicCmpSDK-X.Y.Z-cocoapods.xcframework.zip`.
+2. **Pin the iOS frameworks:** run `tool/pin_ios_sdk.sh X.Y.Z`. It writes the
+   version and SHA-256 of both `-cocoapods` zips into both `pubspec.yaml`
+   files. If the native release changed its Prebid, Google Mobile Ads or Amazon
+   versions, update `ezoic.ios_sdk.pod_dependencies` in `pubspec.yaml` to match
+   its `Package.swift`.
+3. **Commit** the pins, together with the version bumps:
+   - `version` in both `pubspec.yaml` files
+   - the Maven coordinates in both `android/build.gradle.kts` files
+   - `from:` in both `Package.swift` files
+   - the CHANGELOGs
+
+   Before merging, `tool/check_versions.sh --release --tag vX.Y.Z` must pass.
+   The release-check workflow runs it on PRs that change a `pubspec.yaml`; you
+   can also run it from the Actions tab with the version.
+4. **Tag** the merged commit and push the tag:
+
+   ```sh
+   git tag -a vX.Y.Z -m "ezoic_flutter_sdk and ezoic_flutter_cmp_sdk X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+   The release-check workflow checks the tag again.

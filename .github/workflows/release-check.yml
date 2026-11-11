@@ -1,10 +1,25 @@
 name: release-check
 
-# A release is a pushed vX.Y.Z tag; consumers of both packages pin to it.
-# This checks that the tag can actually be installed: both package versions
-# match it, the native pins agree, and the iOS SHA-256 pins match the
-# ezoic-swift-sdk-dist release assets CocoaPods builds download.
+# A release is a pushed vX.Y.Z tag; consumers of both packages pin to it, and
+# a published tag must never move. This checks that a version can actually be
+# installed: both package versions match the tag, the native pins agree, the
+# iOS SHA-256 pins match the ezoic-swift-sdk-dist release assets CocoaPods
+# builds download, and the pod pins match that release's Package.swift.
+#
+# Run it before tagging: on the release PR (it touches pubspec.yaml), or by
+# hand from the Actions tab with the version about to be tagged. It runs again
+# on the tag push as a last check.
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version about to be tagged, without the v (e.g. 1.22.0)
+        required: true
+  pull_request:
+    branches: [master]
+    paths:
+      - pubspec.yaml
+      - ezoic_flutter_cmp_sdk/pubspec.yaml
   push:
     tags: ['v*']
 
@@ -13,4 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: tool/check_versions.sh --release
+      - name: Check the release pins
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          case "$GITHUB_EVENT_NAME" in
+            workflow_dispatch) tag="v$INPUT_VERSION" ;;
+            pull_request) tag="v$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)" ;;
+            *) tag="$GITHUB_REF_NAME" ;;
+          esac
+          tool/check_versions.sh --release --tag "$tag"
