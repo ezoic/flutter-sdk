@@ -49,8 +49,8 @@ class EzoicCmp {
   static Future<EzoicConsentOutcome> presentConsentIfRequired() =>
       _presentConsent('presentConsentIfRequired');
 
-  /// The "Privacy settings" entry point; show it while
-  /// [isPrivacyOptionsRequired] is `true`.
+  /// The "Privacy settings" entry point; show it unless
+  /// [isPrivacyOptionsRequired] is `false` (`null` means not known yet).
   ///
   /// In a GDPR region it re-opens the consent dialog with the user's stored
   /// choices. In a covered US state it opens the US privacy settings:

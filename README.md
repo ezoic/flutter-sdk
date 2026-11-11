@@ -172,12 +172,13 @@ switch (outcome) {
 requires users to be able to reopen the dialog and withdraw consent at any
 time, and US-state users need a way to opt out of the sale or sharing of their
 information. Wire `presentConsentSettings()` to a menu item or button that is
-always reachable whenever `isPrivacyOptionsRequired()` is `true`:
+always reachable unless `isPrivacyOptionsRequired()` is `false`:
 
 ```dart
 FutureBuilder<bool?>(
   future: EzoicAds.isPrivacyOptionsRequired(),
-  builder: (context, snapshot) => snapshot.data == true
+  // null means not known yet: keep the entry point until it is false.
+  builder: (context, snapshot) => snapshot.data != false
       ? TextButton(
           onPressed: EzoicAds.presentConsentSettings,
           child: const Text('Privacy choices'),
@@ -187,9 +188,9 @@ FutureBuilder<bool?>(
 ```
 
 `isPrivacyOptionsRequired()` is `null` until the init request and the US-state
-configuration have loaded, so check it again later (e.g. when the screen is
-rebuilt) or always show the entry point: `presentConsentSettings()` returns
-`NotRequired` where there is nothing to show.
+configuration have loaded, which is why the example hides the entry point only
+on `false`. If the user taps it where there is nothing to show,
+`presentConsentSettings()` returns `NotRequired`.
 
 `presentConsentIfRequired()` and `presentConsentSettings()` always complete
 with an `EzoicConsentOutcome`; they do not throw for consent results:
@@ -270,16 +271,25 @@ dialog or write `IABTCF_*` keys.
 The `setGDPRConsent` override lasts for the current process only. **Call
 `setGDPRConsent` before `EzoicAds.initialize` on every launch, or set
 `cmpEnabled: false`.** Otherwise each cold start begins with the built-in CMP
-in charge until your call lands. The SDK does not write your consent to
-`IABTCF_*` keys for GMA or other SDKs in the app, so your own CMP must write
-those keys.
+in charge until your call lands. The native SDK also writes what you pass to
+the standard keys that Google Mobile Ads, IMA, Amazon and other IAB-aware SDKs
+in the app read: `setGDPRConsent` writes `IABTCF_gdprApplies` and
+`IABTCF_TCString`, and `setGPPConsent` writes `IABGPP_HDR_GppString` and
+`IABGPP_GppSID`. Your CMP can still write the other `IABTCF_*` / `IABGPP_*`
+keys (purpose and vendor consents, per-section strings) itself.
 
 ```dart
 await EzoicAds.setGDPRConsent(true, 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA');
-await EzoicAds.setGPPConsent('DBABBg~...', '8'); // e.g. California (usca)
+// California (section 8, usca), not opted out.
+await EzoicAds.setGPPConsent('DBABBg~BVoAAACA.QA', '8');
 await EzoicAds.setSubjectToCOPPA(true);
 await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
 ```
+
+The GPP section depends on the user's state: `8` is California (usca); other
+covered states have their own section IDs (for example `9` Virginia, `10`
+Colorado). Pass the section your CMP encoded, the same one it writes to
+`IABGPP_GppSID`.
 
 ### Standalone CMP
 

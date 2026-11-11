@@ -93,15 +93,18 @@ await EzoicCmp.initialize(
 final outcome = await EzoicCmp.presentConsentIfRequired();
 ```
 
-**A persistent "Privacy choices" entry point is required.** Show one while
-`isPrivacyOptionsRequired()` is `true` (a GDPR region or a covered US state),
-and call `presentConsentSettings()` from it. It reopens the TCF dialog in GDPR
+**A persistent "Privacy choices" entry point is required.** Show one unless
+`isPrivacyOptionsRequired()` is `false`: it is `true` in a GDPR region or a
+covered US state, and `null` while not known yet. Call
+`presentConsentSettings()` from it, which returns `NotRequired` if there is
+nothing to show. It reopens the TCF dialog in GDPR
 regions, and opens the US privacy settings in covered US states:
 
 ```dart
 FutureBuilder<bool?>(
   future: EzoicCmp.isPrivacyOptionsRequired(),
-  builder: (context, snapshot) => snapshot.data == true
+  // null means not known yet: keep the entry point until it is false.
+  builder: (context, snapshot) => snapshot.data != false
       ? TextButton(
           onPressed: EzoicCmp.presentConsentSettings,
           child: const Text('Privacy choices'),
