@@ -16,7 +16,6 @@ import com.ezoic.ads.sdk.adunits.EzoicRewardedAdListenerAdapter
 import com.ezoic.ads.sdk.core.EzoicAds
 import com.ezoic.ads.sdk.core.EzoicConfiguration
 import com.ezoic.ads.sdk.core.EzoicError
-import com.ezoic.ads.sdk.privacy.cmp.ConsentDecisionType
 import com.ezoic.ads.sdk.privacy.cmp.ConsentOutcome
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -166,7 +165,8 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
           debugEnabled = call.argument<Boolean>("debugEnabled") ?: false,
           testMode = call.argument<Boolean>("testMode") ?: false,
           autoTrackPageviews = call.argument<Boolean>("autoTrackPageviews") ?: true,
-          cmpEnabled = call.argument<Boolean>("cmpEnabled") ?: true
+          cmpEnabled = call.argument<Boolean>("cmpEnabled") ?: true,
+          appPaid = call.argument<Boolean>("appPaid")
         )
         val shouldAutoPresent = call.argument<Boolean>("autoPresentConsent") ?: true
         EzoicAds.instance.initialize(app, config) { r ->
@@ -201,6 +201,11 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "presentConsentIfRequired" -> presentConsent(reopen = false) { result.success(it) }
       "presentConsentSettings" -> presentConsent(reopen = true) { result.success(it) }
       "isConsentRequired" -> result.success(EzoicAds.instance.isConsentRequired)
+      "isPrivacyOptionsRequired" -> result.success(EzoicAds.instance.isPrivacyOptionsRequired)
+      "setAppContent" -> {
+        EzoicAds.instance.setAppContent(call.argument<String>("language"), call.argument<String>("genre"))
+        result.success(null)
+      }
       "resetConsent" -> {
         EzoicAds.instance.resetConsent()
         result.success(null)
@@ -250,22 +255,6 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
     } else {
       EzoicAds.instance.presentConsentIfRequired(host, deliver)
     }
-  }
-
-  private fun ConsentOutcome.toWireMap(): Map<String, Any> = when (this) {
-    ConsentOutcome.NotRequired -> mapOf("type" to "notRequired")
-    ConsentOutcome.AlreadyDecided -> mapOf("type" to "alreadyDecided")
-    is ConsentOutcome.Decided -> mapOf(
-      "type" to "decided",
-      "decision" to when (decision) {
-        ConsentDecisionType.ACCEPT_ALL -> "acceptAll"
-        ConsentDecisionType.REJECT_ALL -> "rejectAll"
-        ConsentDecisionType.CUSTOM -> "custom"
-      }
-    )
-    ConsentOutcome.Dismissed -> mapOf("type" to "dismissed")
-    ConsentOutcome.AlreadyPresenting -> mapOf("type" to "alreadyPresenting")
-    is ConsentOutcome.Failed -> mapOf("type" to "failed", "code" to error.code, "message" to error.message)
   }
 
   private fun handleLoadRewardedAd(call: MethodCall, result: MethodChannel.Result) {

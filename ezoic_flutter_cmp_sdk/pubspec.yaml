@@ -1,0 +1,36 @@
+name: ezoic_flutter_cmp_sdk
+description: Ezoic CMP for Flutter (IAB TCF consent in GDPR regions, notice and "Do Not Sell" choice in covered US states) for Ezoic publishers whose app doesn't use Ezoic ads.
+version: 1.22.0
+homepage: https://github.com/ezoic/flutter-sdk/tree/master/ezoic_flutter_cmp_sdk
+publish_to: none
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+  flutter: ">=3.41.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.ezoic.ezoic_flutter_cmp_sdk
+        pluginClass: EzoicFlutterCmpSdkPlugin
+      ios:
+        pluginClass: EzoicFlutterCmpSdkPlugin
+
+# Native iOS CMP for CocoaPods builds: ios/ezoic_flutter_cmp_sdk.podspec
+# downloads EzoicCmpSDK-<version>-cocoapods.xcframework.zip from the
+# ezoic-swift-sdk-dist GitHub release and checks it against sha256.
+# Set by tool/pin_ios_sdk.sh; Swift Package Manager builds don't use it.
+ezoic:
+  ios_sdk:
+    version: 1.22.0
+    sha256: eec460f1eff7d82a46f412bf3fe63a5ed7ab90871d12375570927cba91ee0e40

@@ -14,18 +14,69 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - run: tool/check_versions.sh
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      - name: ezoic_flutter_cmp_sdk
+        working-directory: ezoic_flutter_cmp_sdk
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+  # Builds an app with the ads package alone, the CMP package alone, and both,
+  # and runs both plugins' Kotlin unit tests.
+  android:
+    name: android (${{ matrix.case }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [ads, cmp, both]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Create app
+        run: tool/create_test_app.sh ${{ matrix.case }} "$RUNNER_TEMP/app"
+      - name: Build APK
+        working-directory: ${{ runner.temp }}/app
+        run: flutter build apk --debug
+      - name: Plugin unit tests
+        working-directory: ${{ runner.temp }}/app/android
+        run: |
+          ./gradlew :ezoic_flutter_cmp_sdk:testDebugUnitTest
+          if [ "${{ matrix.case }}" != cmp ]; then
+            ./gradlew :ezoic_flutter_sdk:testDebugUnitTest
+          fi
+      - name: Check resolved native SDK
+        working-directory: ${{ runner.temp }}/app/android
+        run: |
+          ./gradlew -q :app:dependencies --configuration debugRuntimeClasspath > deps.txt
+          grep -E 'com\.ezoic\.sdk:ezoic-(ads|cmp)-sdk' deps.txt | sed 's/^[-+|\\ ]*//' | sort -u
+          grep -q 'com.ezoic.sdk:ezoic-cmp-sdk' deps.txt
+          if [ "${{ matrix.case }}" = cmp ]; then
+            ! grep -q 'com.ezoic.sdk:ezoic-ads-sdk' deps.txt
+          fi
 
   ios:
-    name: ios (Flutter ${{ matrix.flutter }}, ${{ matrix.package-manager }})
+    name: ios (${{ matrix.case }}, Flutter ${{ matrix.flutter }}, ${{ matrix.package-manager }})
     runs-on: macos-26
     strategy:
       fail-fast: false
       matrix:
-        flutter: [stable, 3.41.0]
+        case: [ads, cmp, both]
+        flutter: [stable]
         package-manager: [spm, cocoapods]
+        include:
+          - { case: ads, flutter: 3.41.0, package-manager: spm }
+          - { case: ads, flutter: 3.41.0, package-manager: cocoapods }
     steps:
       - uses: actions/checkout@v4
       - run: sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
@@ -34,39 +85,13 @@ jobs:
           channel: stable
           flutter-version: ${{ matrix.flutter != 'stable' && matrix.flutter || '' }}
       - run: flutter --version
-      - name: Select package manager
-        run: |
-          if [ "${{ matrix.package-manager }}" = spm ]; then
-            flutter config --enable-swift-package-manager
-          else
-            flutter config --no-enable-swift-package-manager
-          fi
       - name: Create app
-        working-directory: ${{ runner.temp }}
-        run: |
-          flutter create --platforms=ios --org com.ezoic.ci ezoic_ci_app
-          cd ezoic_ci_app
-          flutter pub add "ezoic_flutter_sdk:{path: $GITHUB_WORKSPACE}"
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/' ios/Runner.xcodeproj/project.pbxproj
-          cat > lib/main.dart <<'EOF'
-          import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';
-          import 'package:flutter/material.dart';
-
-          Future<void> main() async {
-            WidgetsFlutterBinding.ensureInitialized();
-            runApp(const MaterialApp(
-              home: Scaffold(
-                body: Center(child: EzoicBannerView(adUnitIdentifier: '12345')),
-              ),
-            ));
-            await EzoicAds.initialize(const EzoicConfiguration(domain: 'example.com'));
-          }
-          EOF
+        run: tool/create_test_app.sh ${{ matrix.case }} "$RUNNER_TEMP/app" --${{ matrix.package-manager }}
       - name: Build for simulator
-        working-directory: ${{ runner.temp }}/ezoic_ci_app
+        working-directory: ${{ runner.temp }}/app
         run: flutter build ios --simulator --debug --no-codesign
       - name: Check resolved native SDK
-        working-directory: ${{ runner.temp }}/ezoic_ci_app/ios
+        working-directory: ${{ runner.temp }}/app/ios
         run: |
           if [ "${{ matrix.package-manager }}" = spm ]; then
             test ! -e Pods && test ! -e Podfile.lock
@@ -78,6 +103,10 @@ jobs:
           for p in pins: print(p['identity'], p['state'].get('version'))
           "
           else
-            grep -E '^  - (EzoicAdsSDK|Google-Mobile-Ads-SDK|ezoic_flutter_sdk) \(' Podfile.lock
-            grep -qE '^  - EzoicAdsSDK \(' Podfile.lock
+            grep -E '^  - (ezoic_flutter_sdk|ezoic_flutter_cmp_sdk|PrebidMobile|Google-Mobile-Ads-SDK|AmazonPublisherServicesSDK) \(' Podfile.lock || true
+            grep -qE '^  - ezoic_flutter_cmp_sdk \(' Podfile.lock
+            # The vendored frameworks replace the frozen trunk pod.
+            ! grep -qE '^  - EzoicAdsSDK \(' Podfile.lock
+            # One copy of the CMP framework, from ezoic_flutter_cmp_sdk.
+            test "$(grep -o '"EzoicCmpSDKBinary"' 'Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig' | wc -l)" -eq 1
           fi

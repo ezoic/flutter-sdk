@@ -31,10 +31,15 @@ class EzoicConfiguration {
   /// screen yourself.
   final bool autoTrackPageviews;
 
-  /// Enable the native SDK's built-in IAB TCF 2.4 consent dialog for users in
-  /// GDPR regions. Defaults to `true`. Set to `false` if your app runs another
-  /// CMP (UMP, OneTrust, ...).
+  /// Enable the native SDK's built-in CMP: the IAB TCF 2.4 consent dialog for
+  /// users in GDPR regions, and the privacy notice and "Do Not Sell" choice
+  /// for users in covered US states. Defaults to `true`. Set to `false` if
+  /// your app runs another CMP (UMP, OneTrust, ...).
   final bool cmpEnabled;
+
+  /// Whether your app is a paid app, sent to bidders as OpenRTB `app.paid`
+  /// (`1` paid, `0` free). Defaults to `null`: nothing is sent.
+  final bool? appPaid;
 
   /// Wrapper-only: after [EzoicAds.initialize] succeeds, present the consent
   /// dialog once if it is required (see [EzoicAds.presentConsentIfRequired]).
@@ -51,6 +56,7 @@ class EzoicConfiguration {
     this.testMode = false,
     this.autoTrackPageviews = true,
     this.cmpEnabled = true,
+    this.appPaid,
     this.autoPresentConsent = true,
   });
 
@@ -64,6 +70,7 @@ class EzoicConfiguration {
         'testMode': testMode,
         'autoTrackPageviews': autoTrackPageviews,
         'cmpEnabled': cmpEnabled,
+        'appPaid': appPaid,
         'autoPresentConsent': autoPresentConsent,
       };
 }

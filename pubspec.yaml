@@ -1,6 +1,6 @@
 name: ezoic_flutter_sdk
 description: Ezoic Ads SDK for Flutter (Prebid + Google Ad Manager banner, native, interstitial and rewarded ads).
-version: 1.21.0
+version: 1.22.0
 homepage: https://github.com/ezoic/flutter-sdk
 publish_to: none
 
@@ -11,6 +11,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # The built-in CMP's Dart types and native CMP plugin. Its iOS pod is the
+  # only one that vendors EzoicCmpSDKBinary, so an app gets one copy of it.
+  ezoic_flutter_cmp_sdk:
+    path: ezoic_flutter_cmp_sdk
 
 dev_dependencies:
   flutter_test:
@@ -25,3 +29,20 @@ flutter:
         pluginClass: EzoicFlutterSdkPlugin
       ios:
         pluginClass: EzoicFlutterSdkPlugin
+
+# Native iOS ads SDK for CocoaPods builds: ios/ezoic_flutter_sdk.podspec
+# downloads EzoicAdsSDK-<version>-cocoapods.xcframework.zip from the
+# ezoic-swift-sdk-dist GitHub release and checks it against sha256. The CMP
+# framework comes from ezoic_flutter_cmp_sdk's pod. version and sha256 are set
+# by tool/pin_ios_sdk.sh. pod_dependencies are the pods the binary links, which
+# the podspec declares. They must match ezoic-swift-sdk-dist's Package.swift for
+# that version: tool/check_versions.sh --release compares them. Swift Package
+# Manager builds don't use this block.
+ezoic:
+  ios_sdk:
+    version: 1.22.0
+    sha256: dd375c1989ace9aa960502a860644177646399084a852d9617b9bd6c2ad0e52a
+    pod_dependencies:
+      PrebidMobile: "3.4.1"
+      Google-Mobile-Ads-SDK: "~> 13.0"
+      AmazonPublisherServicesSDK: "5.6.6"

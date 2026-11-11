@@ -95,7 +95,8 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
         debugEnabled: args["debugEnabled"] as? Bool ?? false,
         testMode: args["testMode"] as? Bool ?? false,
         autoTrackPageviews: args["autoTrackPageviews"] as? Bool ?? true,
-        cmpEnabled: args["cmpEnabled"] as? Bool ?? true
+        cmpEnabled: args["cmpEnabled"] as? Bool ?? true,
+        appPaid: args["appPaid"] as? Bool
       )
       let shouldAutoPresent = args["autoPresentConsent"] as? Bool ?? true
       EzoicAds.shared.initialize(with: config) { r in
@@ -133,6 +134,12 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       presentConsent(reopen: true) { result($0) }
     case "isConsentRequired":
       result(EzoicAds.shared.isConsentRequired)
+    case "isPrivacyOptionsRequired":
+      result(EzoicAds.shared.isPrivacyOptionsRequired)
+    case "setAppContent":
+      let args = call.arguments as? [String: Any]
+      EzoicAds.shared.setAppContent(language: args?["language"] as? String, genre: args?["genre"] as? String)
+      result(nil)
     case "resetConsent":
       EzoicAds.shared.resetConsent()
       result(nil)
@@ -230,7 +237,9 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     case .alreadyPresenting:
       return ["type": "alreadyPresenting"]
     case .failed(let error):
-      return ["type": "failed", "code": error.code, "message": error.localizedDescription]
+      // An `Error` from native 1.22.0: `EzoicError` through `EzoicAds`; it and
+      // `CmpError` conform to `EzoicErrorCode` with the same codes.
+      return ["type": "failed", "code": (error as? EzoicErrorCode)?.code ?? -1, "message": error.localizedDescription]
     @unknown default:
       return unrecognizedOutcome
     }
