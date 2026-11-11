@@ -26,6 +26,25 @@ pin_set() {
   mv "$tmp" "$1"
 }
 
+# pod_get <pubspec> <pod>: the requirement in ezoic.ios_sdk.pod_dependencies,
+# without quotes.
+pod_get() {
+  awk -v pod="$2" '
+    /^[^ #]/ { in_ezoic = ($0 ~ /^ezoic:/); in_sdk = 0; in_pods = 0 }
+    in_ezoic && /^  ios_sdk:/ { in_sdk = 1; next }
+    in_sdk && /^  [^ ]/ { in_sdk = 0 }
+    in_sdk && /^    pod_dependencies:/ { in_pods = 1; next }
+    in_pods && /^    [^ ]/ { in_pods = 0 }
+    in_pods && $1 == pod ":" {
+      sub(/^[^:]*:[ ]*/, ""); gsub(/"/, ""); print; exit
+    }
+  ' "$1"
+}
+
+# The pods the vendored ads binary links (the podspec declares them from
+# pubspec.yaml), each checked against ezoic-swift-sdk-dist's Package.swift.
+IOS_SDK_PODS=(PrebidMobile Google-Mobile-Ads-SDK AmazonPublisherServicesSDK)
+
 # The packages and the release asset each one vendors.
 IOS_SDK_PACKAGES=("pubspec.yaml EzoicAdsSDK" "ezoic_flutter_cmp_sdk/pubspec.yaml EzoicCmpSDK")
 IOS_SDK_RELEASES=https://github.com/ezoic/ezoic-swift-sdk-dist/releases/download

@@ -33,9 +33,16 @@ flutter:
 # Native iOS ads SDK for CocoaPods builds: ios/ezoic_flutter_sdk.podspec
 # downloads EzoicAdsSDK-<version>-cocoapods.xcframework.zip from the
 # ezoic-swift-sdk-dist GitHub release and checks it against sha256. The CMP
-# framework comes from ezoic_flutter_cmp_sdk's pod. Set by tool/pin_ios_sdk.sh;
-# Swift Package Manager builds don't use it.
+# framework comes from ezoic_flutter_cmp_sdk's pod. version and sha256 are set
+# by tool/pin_ios_sdk.sh. pod_dependencies are the pods the binary links, which
+# the podspec declares. They must match ezoic-swift-sdk-dist's Package.swift for
+# that version: tool/check_versions.sh --release compares them. Swift Package
+# Manager builds don't use this block.
 ezoic:
   ios_sdk:
     version: 1.22.0
     sha256: TODO-RELEASE
+    pod_dependencies:
+      PrebidMobile: "3.4.1"
+      Google-Mobile-Ads-SDK: "~> 13.0"
+      AmazonPublisherServicesSDK: "5.6.6"

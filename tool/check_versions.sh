@@ -3,19 +3,26 @@
 #
 #   tool/check_versions.sh            versions and native pins line up
 #   tool/check_versions.sh --release  also: the iOS SHA-256 pins are real and
-#                                     match the release assets, and the tag
+#                                     match the release assets, the pod pins
+#                                     match ezoic-swift-sdk-dist's Package.swift
+#                                     at the native tag, and the tag
 #                                     (GITHUB_REF_NAME or --tag vX.Y.Z) matches
+#
+#   --dist-manifest <file>  compare the pod pins with a local Package.swift
+#                           instead of downloading it (also without --release)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . tool/ios_sdk_pin.sh
 
 release=false
 tag=${GITHUB_REF_NAME:-}
+dist_manifest=
 while [ $# -gt 0 ]; do
   case "$1" in
     --release) release=true ;;
     --tag) tag=$2; shift ;;
-    *) echo "usage: $0 [--release] [--tag vX.Y.Z]" >&2; exit 64 ;;
+    --dist-manifest) dist_manifest=$2; shift ;;
+    *) echo "usage: $0 [--release] [--tag vX.Y.Z] [--dist-manifest <Package.swift>]" >&2; exit 64 ;;
   esac
   shift
 done
@@ -46,6 +53,49 @@ done
 
 cmp -s ios/ezoic_ios_sdk.rb ezoic_flutter_cmp_sdk/ios/ezoic_ios_sdk.rb ||
   fail "ios/ezoic_ios_sdk.rb and ezoic_flutter_cmp_sdk/ios/ezoic_ios_sdk.rb differ"
+
+# The podspec declares the pods only from pubspec.yaml, so the pins can't fork.
+for pod in "${IOS_SDK_PODS[@]}"; do
+  [ -n "$(pod_get pubspec.yaml "$pod")" ] ||
+    fail "pubspec.yaml ezoic.ios_sdk.pod_dependencies has no $pod"
+  ! grep -qE "s\.dependency +['\"]$pod['\"]" ios/ezoic_flutter_sdk.podspec ||
+    fail "ios/ezoic_flutter_sdk.podspec pins $pod itself; declare it in pubspec.yaml ezoic.ios_sdk.pod_dependencies"
+done
+grep -q "pod_dependencies" ios/ezoic_flutter_sdk.podspec ||
+  fail "ios/ezoic_flutter_sdk.podspec doesn't read ezoic.ios_sdk.pod_dependencies"
+
+# check_pod_pins <dist Package.swift>: the pods match what the native release
+# was built against (Prebid and APS exact, Google Mobile Ads the same major).
+check_pod_pins() {
+  local manifest=$1 want got
+  got=$(sed -nE 's#.*prebid-mobile-ios-sdk(\.git)?", exact: "([^"]+)".*#\2#p' "$manifest" | head -1)
+  want=$(pod_get pubspec.yaml PrebidMobile)
+  [ -n "$got" ] && [ "$got" = "$want" ] ||
+    fail "PrebidMobile is '$want' in pubspec.yaml but '$got' in ezoic-swift-sdk-dist $native"
+  got=$(sed -nE 's#.*swift-package-manager-amazon-aps(\.git)?", exact: "([^"]+)".*#\2#p' "$manifest" | head -1)
+  want=$(pod_get pubspec.yaml AmazonPublisherServicesSDK)
+  [ -n "$got" ] && [ "$got" = "$want" ] ||
+    fail "AmazonPublisherServicesSDK is '$want' in pubspec.yaml but '$got' in ezoic-swift-sdk-dist $native"
+  # GMA spans two lines in the manifest: the package URL, then the range.
+  got=$(grep -A2 'swift-package-manager-google-mobile-ads' "$manifest" |
+    sed -nE 's#.*"([0-9]+)\.[0-9]+\.[0-9]+" *\.\.<.*#\1#p' | head -1)
+  want=$(pod_get pubspec.yaml Google-Mobile-Ads-SDK | sed -nE 's#^~> *([0-9]+)(\..*)?$#\1#p')
+  [ -n "$got" ] && [ "$got" = "$want" ] ||
+    fail "Google-Mobile-Ads-SDK major is '$want' in pubspec.yaml but '$got' in ezoic-swift-sdk-dist $native"
+}
+
+if [ -n "$dist_manifest" ]; then
+  check_pod_pins "$dist_manifest"
+elif $release; then
+  manifest=$(mktemp)
+  url=https://raw.githubusercontent.com/ezoic/ezoic-swift-sdk-dist/$native/Package.swift
+  if curl -fsSL --retry 3 -o "$manifest" "$url"; then
+    check_pod_pins "$manifest"
+  else
+    fail "could not download $url"
+  fi
+  rm -f "$manifest"
+fi
 
 if $release; then
   if [ -n "$tag" ] && [ "$tag" != "v$ads_version" ]; then
