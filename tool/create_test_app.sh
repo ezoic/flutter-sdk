@@ -45,6 +45,15 @@ sed -i.bak 's/IPHONEOS_DEPLOYMENT_TARGET = 1[0-4]\.0;/IPHONEOS_DEPLOYMENT_TARGET
   ios/Runner.xcodeproj/project.pbxproj
 rm ios/Runner.xcodeproj/project.pbxproj.bak
 
+# Google Mobile Ads aborts at launch without an app ID; use Google's public
+# sample IDs so ads apps can run (the CMP alone doesn't link GMA).
+if [ "$case_name" != cmp ]; then
+  perl -0pi -e 's#<dict>#<dict>\n\t<key>GADApplicationIdentifier</key>\n\t<string>ca-app-pub-3940256099942544~1458002511</string>#' \
+    ios/Runner/Info.plist
+  perl -0pi -e 's#(<application\b[^>]*>)#$1\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>#' \
+    android/app/src/main/AndroidManifest.xml
+fi
+
 ads_import="import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';"
 cmp_import="import 'package:ezoic_flutter_cmp_sdk/ezoic_flutter_cmp_sdk.dart';"
 case "$case_name" in
