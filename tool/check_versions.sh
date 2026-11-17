@@ -5,8 +5,13 @@
 #   tool/check_versions.sh --release  also: the iOS SHA-256 pins are real and
 #                                     match the release assets, the pod pins
 #                                     match ezoic-swift-sdk-dist's Package.swift
-#                                     at the native tag, and the tag
+#                                     at the native tag, Maven Central has the
+#                                     Android pins, and the tag
 #                                     (GITHUB_REF_NAME or --tag vX.Y.Z) matches
+#
+# The native Android and iOS SDKs are versioned separately (for example
+# Android 1.22.3 with iOS 1.23.2), so neither has to equal the package
+# version. Both packages must pin the same native release on each platform.
 #
 #   --dist-manifest <file>  compare the pod pins with a local Package.swift
 #                           instead of downloading it (also without --release)
@@ -37,15 +42,18 @@ cmp_version=$(version_of ezoic_flutter_cmp_sdk/pubspec.yaml)
 [ "$ads_version" = "$cmp_version" ] ||
   fail "ezoic_flutter_sdk is $ads_version but ezoic_flutter_cmp_sdk is $cmp_version"
 
+# iOS: ezoic.ios_sdk.version, the ezoic-swift-sdk-dist release.
 native=$(pin_get pubspec.yaml version)
 [ -n "$native" ] || fail "pubspec.yaml has no ezoic.ios_sdk.version"
 [ "$(pin_get ezoic_flutter_cmp_sdk/pubspec.yaml version)" = "$native" ] ||
   fail "the two ezoic.ios_sdk.version pins differ"
 
-grep -q "\"com.ezoic.sdk:ezoic-ads-sdk:$native\"" android/build.gradle.kts ||
-  fail "android/build.gradle.kts doesn't depend on ezoic-ads-sdk:$native"
-grep -q "\"com.ezoic.sdk:ezoic-cmp-sdk:$native\"" ezoic_flutter_cmp_sdk/android/build.gradle.kts ||
-  fail "ezoic_flutter_cmp_sdk/android/build.gradle.kts doesn't depend on ezoic-cmp-sdk:$native"
+# Android: the ads package's Maven coordinate; the CMP package pins the same.
+android_native=$(sed -nE 's/.*"com\.ezoic\.sdk:ezoic-ads-sdk:([^"]+)".*/\1/p' android/build.gradle.kts | head -1)
+[[ "$android_native" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+  fail "android/build.gradle.kts doesn't depend on ezoic-ads-sdk:X.Y.Z (found '$android_native')"
+grep -q "\"com.ezoic.sdk:ezoic-cmp-sdk:$android_native\"" ezoic_flutter_cmp_sdk/android/build.gradle.kts ||
+  fail "ezoic_flutter_cmp_sdk/android/build.gradle.kts doesn't depend on ezoic-cmp-sdk:$android_native"
 for manifest in ios/ezoic_flutter_sdk/Package.swift ezoic_flutter_cmp_sdk/ios/ezoic_flutter_cmp_sdk/Package.swift; do
   grep -q "ezoic-swift-sdk-dist.git\", from: \"$native\"" "$manifest" ||
     fail "$manifest doesn't resolve ezoic-swift-sdk-dist from $native"
@@ -112,9 +120,14 @@ if $release; then
     actual=$(sha256_of_url "$url") || { fail "could not download $url"; continue; }
     [ "$actual" = "$pinned" ] || fail "$url is $actual, $pubspec pins $pinned"
   done
+  # The Android pins must be published too.
+  for artifact in ezoic-ads-sdk ezoic-cmp-sdk; do
+    url=https://repo.maven.apache.org/maven2/com/ezoic/sdk/$artifact/$android_native/$artifact-$android_native.pom
+    curl -fsSL --retry 3 -o /dev/null "$url" || fail "$url is not on Maven Central"
+  done
 fi
 
 if [ "$errors" -gt 0 ]; then
   exit 1
 fi
-echo "ezoic_flutter_sdk and ezoic_flutter_cmp_sdk $ads_version on native $native: consistent"
+echo "ezoic_flutter_sdk and ezoic_flutter_cmp_sdk $ads_version on native Android $android_native, iOS $native: consistent"
