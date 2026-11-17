@@ -2,10 +2,11 @@
 
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
-native SDKs: `EzoicAdsSDK` 1.22.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
-1.22.0 on Android. The built-in consent management (CMP) comes from the
-sibling package [`ezoic_flutter_cmp_sdk`](ezoic_flutter_cmp_sdk/), which this
-package depends on; apps that only need the CMP can use that package alone.
+native SDKs: `EzoicAdsSDK` 1.23.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
+1.22.3 on Android (the two are versioned separately). The built-in consent
+management (CMP) comes from the sibling package
+[`ezoic_flutter_cmp_sdk`](ezoic_flutter_cmp_sdk/), which this package depends
+on; apps that only need the CMP can use that package alone.
 
 ## Requirements
 
@@ -23,7 +24,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.22.0
+      ref: v1.22.3
 ```
 
 This also brings in `ezoic_flutter_cmp_sdk` from the same tag; don't add it to
@@ -58,7 +59,7 @@ for the pinned version and checks each file's SHA-256, so the first
 `pod install` needs network access to GitHub. It also installs the
 `PrebidMobile`, `Google-Mobile-Ads-SDK` and `AmazonPublisherServicesSDK` pods
 the native SDK links. CocoaPods builds get exactly the pinned native version;
-Swift Package Manager resolves 1.22.0 or a later 1.x release.
+Swift Package Manager resolves 1.23.2 or a later 1.x release.
 
 The native SDK and Google Mobile Ads ship as static binaries, so the plugin
 must link statically; its podspec declares `static_framework = true`, so this
@@ -310,12 +311,12 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.22.0
+      ref: v1.22.3
 dependency_overrides:
   ezoic_flutter_cmp_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.22.0
+      ref: v1.22.3
       path: ezoic_flutter_cmp_sdk
 ```
 
@@ -432,6 +433,10 @@ Types: `EzoicConfiguration`, `EzoicConsentOutcome` (`NotRequired`,
 
 Ad formats: `EzoicBannerView`, `EzoicNativeAdView`, `EzoicOutstreamAdView`,
 `EzoicInstreamAd`, `EzoicInterstitialAd`, `EzoicRewardedAd` (below).
+
+An interstitial that Google renders and that is still on screen 20 seconds
+after it was shown is closed by the native SDK, and `onDismissed` fires as
+usual; rewarded ads are never closed this way.
 
 ## Banner Ads
 
@@ -607,26 +612,29 @@ controller and reuse it across loads, then call `destroy()` when done.
 
 Both packages ship from one annotated `vX.Y.Z` git tag at the same version
 (`ezoic_flutter_cmp_sdk` through `path:`). Consumers pin to the tag, so never
-move a published tag: cut a new version instead. Release in this order:
+move a published tag: cut a new version instead. The native Android and iOS
+SDKs are versioned separately, so below `A.B.C` is the native Android version
+and `I.J.K` the native iOS version; neither has to equal the package version
+`X.Y.Z` (1.22.3 wraps Android 1.22.3 and iOS 1.23.2). Release in this order:
 
 1. **Native releases are published.** Both are needed:
-   - Maven Central has `com.ezoic.sdk:ezoic-ads-sdk:X.Y.Z` and
-     `com.ezoic.sdk:ezoic-cmp-sdk:X.Y.Z`.
+   - Maven Central has `com.ezoic.sdk:ezoic-ads-sdk:A.B.C` and
+     `com.ezoic.sdk:ezoic-cmp-sdk:A.B.C`.
    - [ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist/releases)
-     has the `X.Y.Z` tag with all four zips:
-     `EzoicAdsSDK-X.Y.Z.xcframework.zip`,
-     `EzoicAdsSDK-X.Y.Z-cocoapods.xcframework.zip`,
-     `EzoicCmpSDK-X.Y.Z.xcframework.zip` and
-     `EzoicCmpSDK-X.Y.Z-cocoapods.xcframework.zip`.
-2. **Pin the iOS frameworks:** run `tool/pin_ios_sdk.sh X.Y.Z`. It writes the
+     has the `I.J.K` tag with all four zips:
+     `EzoicAdsSDK-I.J.K.xcframework.zip`,
+     `EzoicAdsSDK-I.J.K-cocoapods.xcframework.zip`,
+     `EzoicCmpSDK-I.J.K.xcframework.zip` and
+     `EzoicCmpSDK-I.J.K-cocoapods.xcframework.zip`.
+2. **Pin the iOS frameworks:** run `tool/pin_ios_sdk.sh I.J.K`. It writes the
    version and SHA-256 of both `-cocoapods` zips into both `pubspec.yaml`
    files. If the native release changed its Prebid, Google Mobile Ads or Amazon
    versions, update `ezoic.ios_sdk.pod_dependencies` in `pubspec.yaml` to match
    its `Package.swift`.
 3. **Commit** the pins, together with the version bumps:
    - `version` in both `pubspec.yaml` files
-   - the Maven coordinates in both `android/build.gradle.kts` files
-   - `from:` in both `Package.swift` files
+   - the Maven coordinates in both `android/build.gradle.kts` files (`A.B.C`)
+   - `from:` in both `Package.swift` files (`I.J.K`)
    - the CHANGELOGs
 
    Before merging, `tool/check_versions.sh --release --tag vX.Y.Z` must pass.
