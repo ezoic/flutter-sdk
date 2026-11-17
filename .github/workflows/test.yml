@@ -125,8 +125,9 @@ jobs:
         working-directory: ${{ runner.temp }}/app/ios
         run: |
           if [ "${{ matrix.package-manager }}" = spm ]; then
-            test ! -e Pods
-            test ! -e Podfile.lock
+            # Flutter 3.41 still runs `pod install` (an empty Podfile) with
+            # Swift Package Manager on; no plugin may come from CocoaPods.
+            if [ -e Podfile.lock ] && grep -qE '^  - ezoic_flutter_(cmp_)?sdk ' Podfile.lock; then exit 1; fi
             python3 -c "
           import json
           pins = json.load(open('Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved'))['pins']
