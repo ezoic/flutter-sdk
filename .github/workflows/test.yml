@@ -28,7 +28,8 @@ jobs:
   # Builds an app with the ads package alone, the CMP package alone, and both,
   # and runs both plugins' Kotlin unit tests. "ads, without CMP" is an ads app
   # with the README's Gradle exclude: it checks that the native CMP is not in
-  # the APK, that the core is, and that an R8 release build still works.
+  # the APK, that the core is, and that an R8 release build still works (the
+  # default ads case builds one too).
   android:
     name: android (${{ matrix.case }}${{ matrix.without-cmp && ', without CMP' || '' }})
     runs-on: ubuntu-latest
@@ -92,7 +93,7 @@ jobs:
             grep -q "'Lcom/ezoic/ads/sdk/privacy/cmp/EzoicCmp;'" classes.txt
           fi
       - name: R8 release build
-        if: matrix.without-cmp
+        if: matrix.case == 'ads'
         working-directory: ${{ runner.temp }}/app
         run: flutter build apk --release
 
@@ -153,7 +154,7 @@ jobs:
           found=false
           for binary in Runner *.dylib Frameworks/*.framework/*; do
             [ -f "$binary" ] || continue
-            if nm "$binary" 2>/dev/null | grep -qF '_OBJC_CLASS_$_EZBuiltInCmpProvider'; then
+            if nm -U "$binary" 2>/dev/null | grep -F '_OBJC_CLASS_$_EZBuiltInCmpProvider' >/dev/null; then
               echo "EZBuiltInCmpProvider is linked into $binary"
               found=true
             fi

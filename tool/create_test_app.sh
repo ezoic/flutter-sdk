@@ -67,6 +67,10 @@ rm ios/Runner.xcodeproj/project.pbxproj.bak
 if [ "$case_name" != cmp ]; then
   perl -0pi -e 's#<dict>#<dict>\n\t<key>GADApplicationIdentifier</key>\n\t<string>ca-app-pub-3940256099942544~1458002511</string>#' \
     ios/Runner/Info.plist
+  # The SDK requests App Tracking Transparency before ads (requestATTBeforeAds
+  # defaults to true); iOS kills an app that does so without this key.
+  perl -0pi -e 's#<dict>#<dict>\n\t<key>NSUserTrackingUsageDescription</key>\n\t<string>Used to show you more relevant ads.</string>#' \
+    ios/Runner/Info.plist
   perl -0pi -e 's#(<application\b[^>]*>)#$1\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>#' \
     android/app/src/main/AndroidManifest.xml
 fi

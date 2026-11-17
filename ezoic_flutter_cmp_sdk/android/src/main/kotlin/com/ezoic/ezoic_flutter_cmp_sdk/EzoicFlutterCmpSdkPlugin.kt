@@ -55,13 +55,27 @@ class EzoicFlutterCmpSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Met
     try {
       handle(call, result)
     } catch (e: NoClassDefFoundError) {
-      // The app excluded the native CMP (ezoic-cmp-sdk) but calls EzoicCmp.
-      result.error(
-        "EzoicCmp",
-        "The Ezoic CMP is not in this app: its ezoic-cmp-sdk dependency is excluded.",
-        null
-      )
+      if (isNativeCmpMissing()) {
+        // The app excluded the native CMP (ezoic-cmp-sdk) but calls EzoicCmp.
+        result.error(
+          "EzoicCmp",
+          "The Ezoic CMP is not in this app: its ezoic-cmp-sdk dependency is excluded.",
+          null
+        )
+      } else {
+        result.error("EzoicCmp", e.message ?: "NoClassDefFoundError", e.toString())
+      }
     }
+  }
+
+  /** Whether the native CMP is absent (ezoic-cmp-sdk keeps EzoicCmp's name under R8). */
+  private fun isNativeCmpMissing(): Boolean = try {
+    Class.forName("com.ezoic.ads.sdk.privacy.cmp.EzoicCmp", false, javaClass.classLoader)
+    false
+  } catch (_: ClassNotFoundException) {
+    true
+  } catch (_: LinkageError) {
+    true
   }
 
   private fun handle(call: MethodCall, result: MethodChannel.Result) {
