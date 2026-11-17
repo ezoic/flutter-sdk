@@ -26,14 +26,20 @@ jobs:
           flutter test
 
   # Builds an app with the ads package alone, the CMP package alone, and both,
-  # and runs both plugins' Kotlin unit tests.
+  # and runs both plugins' Kotlin unit tests. "ads, without CMP" is an ads app
+  # with the README's Gradle exclude: it checks that the native CMP is not in
+  # the APK, that the core is, and that an R8 release build still works (the
+  # default ads case builds one too).
   android:
-    name: android (${{ matrix.case }})
+    name: android (${{ matrix.case }}${{ matrix.without-cmp && ', without CMP' || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         case: [ads, cmp, both]
+        without-cmp: [false]
+        include:
+          - { case: ads, without-cmp: true }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -44,7 +50,9 @@ jobs:
         with:
           channel: stable
       - name: Create app
-        run: tool/create_test_app.sh ${{ matrix.case }} "$RUNNER_TEMP/app"
+        run: |
+          tool/create_test_app.sh ${{ matrix.case }} "$RUNNER_TEMP/app" \
+            ${{ matrix.without-cmp && '--without-cmp' || '' }}
       - name: Build APK
         working-directory: ${{ runner.temp }}/app
         run: flutter build apk --debug
@@ -59,11 +67,35 @@ jobs:
         working-directory: ${{ runner.temp }}/app/android
         run: |
           ./gradlew -q :app:dependencies --configuration debugRuntimeClasspath > deps.txt
-          grep -E 'com\.ezoic\.sdk:ezoic-(ads|cmp)-sdk' deps.txt | sed 's/^[-+|\\ ]*//' | sort -u
-          grep -q 'com.ezoic.sdk:ezoic-cmp-sdk' deps.txt
-          if [ "${{ matrix.case }}" = cmp ]; then
-            ! grep -q 'com.ezoic.sdk:ezoic-ads-sdk' deps.txt
+          grep -E 'com\.ezoic\.sdk:ezoic-(ads-sdk|cmp-sdk|consent-core)' deps.txt | sed 's/^[-+|\\ ]*//' | sort -u
+          grep -q 'com.ezoic.sdk:ezoic-consent-core' deps.txt
+          if [ "${{ matrix.without-cmp }}" = true ]; then
+            if grep -q 'com.ezoic.sdk:ezoic-cmp-sdk' deps.txt; then exit 1; fi
+          else
+            grep -q 'com.ezoic.sdk:ezoic-cmp-sdk' deps.txt
           fi
+          if [ "${{ matrix.case }}" = cmp ]; then
+            if grep -q 'com.ezoic.sdk:ezoic-ads-sdk' deps.txt; then exit 1; fi
+          fi
+      # The debug APK isn't shrunk, so a missing class was never there.
+      - name: Check the built-in CMP in the APK
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          dexdump=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/dexdump
+          mkdir dex
+          unzip -q build/app/outputs/flutter-apk/app-debug.apk 'classes*.dex' -d dex
+          for dex in dex/*.dex; do "$dexdump" "$dex" | grep 'Class descriptor'; done > classes.txt
+          wc -l < classes.txt
+          grep -q "'Lcom/ezoic/ads/sdk/privacy/cmp/ConsentOutcome;'" classes.txt
+          if [ "${{ matrix.without-cmp }}" = true ]; then
+            if grep -q "'Lcom/ezoic/ads/sdk/privacy/cmp/EzoicCmp;'" classes.txt; then exit 1; fi
+          else
+            grep -q "'Lcom/ezoic/ads/sdk/privacy/cmp/EzoicCmp;'" classes.txt
+          fi
+      - name: R8 release build
+        if: matrix.case == 'ads'
+        working-directory: ${{ runner.temp }}/app
+        run: flutter build apk --release
 
   ios:
     name: ios (${{ matrix.case }}, Flutter ${{ matrix.flutter }}, ${{ matrix.package-manager }})
@@ -94,7 +126,9 @@ jobs:
         working-directory: ${{ runner.temp }}/app/ios
         run: |
           if [ "${{ matrix.package-manager }}" = spm ]; then
-            test ! -e Pods && test ! -e Podfile.lock
+            # Flutter 3.41 still runs `pod install` (an empty Podfile) with
+            # Swift Package Manager on; no plugin may come from CocoaPods.
+            if [ -e Podfile.lock ] && grep -qE '^  - ezoic_flutter_(cmp_)?sdk ' Podfile.lock; then exit 1; fi
             python3 -c "
           import json
           pins = json.load(open('Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved'))['pins']
@@ -106,7 +140,23 @@ jobs:
             grep -E '^  - (ezoic_flutter_sdk|ezoic_flutter_cmp_sdk|PrebidMobile|Google-Mobile-Ads-SDK|AmazonPublisherServicesSDK) \(' Podfile.lock || true
             grep -qE '^  - ezoic_flutter_cmp_sdk \(' Podfile.lock
             # The vendored frameworks replace the frozen trunk pod.
-            ! grep -qE '^  - EzoicAdsSDK \(' Podfile.lock
-            # One copy of the CMP framework, from ezoic_flutter_cmp_sdk.
+            if grep -qE '^  - EzoicAdsSDK \(' Podfile.lock; then exit 1; fi
+            # One copy of the CMP and consent-core frameworks, from ezoic_flutter_cmp_sdk.
             test "$(grep -o '"EzoicCmpSDKBinary"' 'Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig' | wc -l)" -eq 1
+            test "$(grep -o '"EzoicConsentCoreBinary"' 'Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig' | wc -l)" -eq 1
           fi
+      # The ads binary finds the CMP at runtime by class name, so a static link
+      # without a reference to the provider leaves the CMP out silently
+      # (EzoicAds.isBuiltInCmpIncluded false). The CMP stays in every iOS app.
+      - name: Check the built-in CMP is linked
+        working-directory: ${{ runner.temp }}/app/build/ios/iphonesimulator/Runner.app
+        run: |
+          found=false
+          for binary in Runner *.dylib Frameworks/*.framework/*; do
+            [ -f "$binary" ] || continue
+            if nm -U "$binary" 2>/dev/null | grep -F '_OBJC_CLASS_$_EZBuiltInCmpProvider' >/dev/null; then
+              echo "EZBuiltInCmpProvider is linked into $binary"
+              found=true
+            fi
+          done
+          $found

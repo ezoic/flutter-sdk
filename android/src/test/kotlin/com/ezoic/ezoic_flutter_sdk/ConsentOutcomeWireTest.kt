@@ -1,7 +1,6 @@
 package com.ezoic.ezoic_flutter_sdk
 
 import com.ezoic.ads.sdk.core.EzoicError
-import com.ezoic.ads.sdk.privacy.cmp.CmpError
 import com.ezoic.ads.sdk.privacy.cmp.ConsentDecisionType
 import com.ezoic.ads.sdk.privacy.cmp.ConsentOutcome
 import kotlin.test.Test
@@ -17,9 +16,10 @@ class ConsentOutcomeWireTest {
   }
 
   @Test
-  fun failedCmpErrorCarriesItsCode() {
-    assertEquals(5002, ConsentOutcome.Failed(CmpError.InvalidConsent("x")).toWireMap()["code"])
-    assertEquals(2001, ConsentOutcome.Failed(CmpError.Network(null)).toWireMap()["code"])
+  fun failedConsentErrorsCarryTheirCodes() {
+    assertEquals(2001, ConsentOutcome.Failed(EzoicError.NetworkError(null)).toWireMap()["code"])
+    assertEquals(4001, ConsentOutcome.Failed(EzoicError.RenderError("x")).toWireMap()["code"])
+    assertEquals(5002, ConsentOutcome.Failed(EzoicError.InvalidConsent("x")).toWireMap()["code"])
   }
 
   @Test

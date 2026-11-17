@@ -29,9 +29,11 @@ ezoic-swift-sdk-dist GitHub release; the CocoaPods trunk pod is not used.
   s.source_files = 'ezoic_flutter_sdk/Sources/ezoic_flutter_sdk/**/*.swift'
   s.dependency 'Flutter'
   s.vendored_frameworks = ads_framework
-  # EzoicAdsSDKBinary imports the CMP framework, EzoicCmpSDKBinary. The
-  # ezoic_flutter_cmp_sdk pod is the only one that vendors it, so an app that
-  # also uses that package links one copy.
+  # EzoicAdsSDKBinary imports the consent core, EzoicConsentCoreBinary, and
+  # finds the CMP, EzoicCmpSDKBinary, at runtime. The ezoic_flutter_cmp_sdk pod
+  # is the only one that vendors both, so an app that also uses that package
+  # links one copy of each. The plugin's Swift references the CMP's provider
+  # class so the static link includes the CMP (EzoicFlutterSdkPlugin.swift).
   s.dependency 'ezoic_flutter_cmp_sdk'
 
   # The pods the binary links, from pubspec.yaml ezoic.ios_sdk.pod_dependencies

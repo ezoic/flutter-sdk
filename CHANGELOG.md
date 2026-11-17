@@ -1,3 +1,12 @@
+## 1.24.0
+
+* Wraps native Ezoic Ads SDK 1.24.0 on Android (`com.ezoic.sdk:ezoic-ads-sdk:1.24.0`) and iOS (CocoaPods builds get exactly 1.24.0; Swift Package Manager resolves `EzoicAdsSDK` 1.24.0+).
+* The built-in CMP can be left out of Android apps that use another CMP: set `cmpEnabled: false` and exclude `com.ezoic.sdk:ezoic-cmp-sdk` in your app's `android/app/build.gradle(.kts)` (`configurations.all { exclude(group = "com.ezoic.sdk", module = "ezoic-cmp-sdk") }`). The SDK then behaves exactly as with `cmpEnabled: false`, and R8 release builds need no extra rules. See [Using your own CMP](README.md#using-your-own-cmp).
+* iOS: the built-in CMP stays in the app (Swift Package Manager and CocoaPods); `cmpEnabled: false` keeps it off.
+* New `EzoicAds.isBuiltInCmpIncluded()` (`Future<bool>`): `false` when the Android app excluded `ezoic-cmp-sdk`, `true` otherwise. Tells "removed" apart from "disabled".
+* The consent types shared by the ads SDK and the CMP moved to a new native consent core (Android `com.ezoic.sdk:ezoic-consent-core`; iOS `EzoicConsentCore`). No Dart API changes; `Failed(code, message)` keeps its codes (`1001`, `2001`, `4001`, `5002`).
+* iOS CocoaPods builds also download `EzoicConsentCore-1.24.0-cocoapods.xcframework.zip` from the ezoic-swift-sdk-dist release, through `ezoic_flutter_cmp_sdk`. The SHA-256 pins in both `pubspec.yaml` files are now one entry per framework (`ezoic.ios_sdk.sha256.<product>`). The plugin references the CMP's provider class so CocoaPods' static link keeps the CMP in the app (the ads binary only finds it at runtime).
+
 ## 1.22.3
 
 * Wraps native Ezoic Ads SDK 1.22.3 on Android (`com.ezoic.sdk:ezoic-ads-sdk:1.22.3`) and 1.23.2 on iOS (CocoaPods builds get exactly 1.23.2; Swift Package Manager resolves `EzoicAdsSDK` 1.23.2+). The native Android and iOS SDKs are now versioned separately. There is no 1.22.1 or 1.22.2 of this package: this release contains the native changes since 1.22.0. No Dart API changes.

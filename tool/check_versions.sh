@@ -59,6 +59,14 @@ for manifest in ios/ezoic_flutter_sdk/Package.swift ezoic_flutter_cmp_sdk/ios/ez
     fail "$manifest doesn't resolve ezoic-swift-sdk-dist from $native"
 done
 
+# Every vendored asset has a SHA-256 pin (the podspecs refuse to install
+# without one).
+for entry in "${IOS_SDK_PACKAGES[@]}"; do
+  read -r pubspec product <<<"$entry"
+  [[ "$(sha_get "$pubspec" "$product")" =~ ^[0-9a-f]{64}$ ]] ||
+    fail "$pubspec has no 64-character ezoic.ios_sdk.sha256.$product"
+done
+
 cmp -s ios/ezoic_ios_sdk.rb ezoic_flutter_cmp_sdk/ios/ezoic_ios_sdk.rb ||
   fail "ios/ezoic_ios_sdk.rb and ezoic_flutter_cmp_sdk/ios/ezoic_ios_sdk.rb differ"
 
@@ -111,9 +119,9 @@ if $release; then
   fi
   for entry in "${IOS_SDK_PACKAGES[@]}"; do
     read -r pubspec product <<<"$entry"
-    pinned=$(pin_get "$pubspec" sha256)
+    pinned=$(sha_get "$pubspec" "$product")
     if ! [[ "$pinned" =~ ^[0-9a-f]{64}$ ]]; then
-      fail "$pubspec ezoic.ios_sdk.sha256 is '$pinned'; run tool/pin_ios_sdk.sh $native"
+      fail "$pubspec ezoic.ios_sdk.sha256.$product is '$pinned'; run tool/pin_ios_sdk.sh $native"
       continue
     fi
     url=$(ios_sdk_url "$product" "$native")
@@ -121,7 +129,7 @@ if $release; then
     [ "$actual" = "$pinned" ] || fail "$url is $actual, $pubspec pins $pinned"
   done
   # The Android pins must be published too.
-  for artifact in ezoic-ads-sdk ezoic-cmp-sdk; do
+  for artifact in ezoic-ads-sdk ezoic-cmp-sdk ezoic-consent-core; do
     url=https://repo.maven.apache.org/maven2/com/ezoic/sdk/$artifact/$android_native/$artifact-$android_native.pom
     curl -fsSL --retry 3 -o /dev/null "$url" || fail "$url is not on Maven Central"
   done

@@ -1,15 +1,14 @@
 package com.ezoic.ezoic_flutter_sdk
 
 import com.ezoic.ads.sdk.core.EzoicError
-import com.ezoic.ads.sdk.privacy.cmp.CmpError
 import com.ezoic.ads.sdk.privacy.cmp.ConsentDecisionType
 import com.ezoic.ads.sdk.privacy.cmp.ConsentOutcome
 
 /**
  * The outcome in the wire format the Dart `EzoicConsentOutcome.fromMap`
- * parses. `Failed.error` is an `Exception` from native 1.22.0: an
- * [EzoicError] through `EzoicAds`, a [CmpError] through `EzoicCmp`. Both carry
- * the same codes; anything else gets -1.
+ * parses. `EzoicAds` reports `Failed` with an [EzoicError], which carries the
+ * code; anything else gets -1. Not `CmpError`: that class is in ezoic-cmp-sdk,
+ * which an app may exclude (see the README), and this plugin must not touch it.
  */
 internal fun ConsentOutcome.toWireMap(): Map<String, Any> = when (this) {
   ConsentOutcome.NotRequired -> mapOf("type" to "notRequired")
@@ -26,7 +25,7 @@ internal fun ConsentOutcome.toWireMap(): Map<String, Any> = when (this) {
   ConsentOutcome.AlreadyPresenting -> mapOf("type" to "alreadyPresenting")
   is ConsentOutcome.Failed -> mapOf(
     "type" to "failed",
-    "code" to ((error as? EzoicError)?.code ?: (error as? CmpError)?.code ?: -1),
+    "code" to ((error as? EzoicError)?.code ?: -1),
     "message" to (error.message ?: error.toString())
   )
 }

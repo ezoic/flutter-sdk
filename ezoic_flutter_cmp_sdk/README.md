@@ -17,8 +17,8 @@ these keys from `UserDefaults` on iOS and the default `SharedPreferences` on
 Android. Whether GDPR applies, and whether the dialog is on, come from your
 Ezoic settings for the domain you pass to `initialize`.
 
-It wraps the native CMP: `com.ezoic.sdk:ezoic-cmp-sdk` 1.22.3 on Android and
-`EzoicCmpSDK` 1.23.x from [ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist)
+It wraps the native CMP: `com.ezoic.sdk:ezoic-cmp-sdk` 1.24.0 on Android and
+`EzoicCmpSDK` 1.24.x from [ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist)
 on iOS.
 
 > **Using Ezoic ads?** Use [`ezoic_flutter_sdk`](../) instead. It already
@@ -45,7 +45,7 @@ dependencies:
   ezoic_flutter_cmp_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.22.3
+      ref: v1.24.0
       path: ezoic_flutter_cmp_sdk
 ```
 
@@ -53,9 +53,10 @@ dependencies:
 General > Minimum Deployments in Xcode). With Swift Package Manager (Flutter's
 default from 3.44), nothing else is needed. With CocoaPods, set
 `platform :ios, '15.0'` in `ios/Podfile`. `pod install` then downloads
-`EzoicCmpSDKBinary.xcframework` from the
+`EzoicCmpSDKBinary.xcframework` and the consent core it uses,
+`EzoicConsentCoreBinary.xcframework`, from the
 [ezoic-swift-sdk-dist release](https://github.com/ezoic/ezoic-swift-sdk-dist/releases)
-and checks its SHA-256, so the first `pod install` needs network access to
+and checks their SHA-256, so the first `pod install` needs network access to
 GitHub.
 
 **Android.** The native CMP is resolved from Maven Central; nothing else to add.
@@ -147,3 +148,9 @@ FutureBuilder<bool?>(
 Set `cmpEnabled: false` (or don't use this package). The CMP also stands down
 on its own when another CMP has already written `IABTCF_CmpSdkID`, or when
 another CMP wrote the `IABGPP_*` keys.
+
+An app that uses `ezoic_flutter_sdk` and leaves the CMP out on Android (the
+Gradle exclude of `ezoic-cmp-sdk` in its
+[Using your own CMP](../README.md#using-your-own-cmp)) still contains this
+package, because `ezoic_flutter_sdk` depends on it. Calling `EzoicCmp` in such
+an app is not supported: its calls fail with a `PlatformException`.

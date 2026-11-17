@@ -202,6 +202,7 @@ class EzoicFlutterSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Method
       "presentConsentSettings" -> presentConsent(reopen = true) { result.success(it) }
       "isConsentRequired" -> result.success(EzoicAds.instance.isConsentRequired)
       "isPrivacyOptionsRequired" -> result.success(EzoicAds.instance.isPrivacyOptionsRequired)
+      "isBuiltInCmpIncluded" -> result.success(EzoicAds.instance.isBuiltInCmpIncluded)
       "setAppContent" -> {
         EzoicAds.instance.setAppContent(call.argument<String>("language"), call.argument<String>("genre"))
         result.success(null)

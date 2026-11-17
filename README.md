@@ -2,8 +2,8 @@
 
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
-native SDKs: `EzoicAdsSDK` 1.23.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
-1.22.3 on Android (the two are versioned separately). The built-in consent
+native SDKs: `EzoicAdsSDK` 1.24.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
+1.24.0 on Android (the two are versioned separately). The built-in consent
 management (CMP) comes from the sibling package
 [`ezoic_flutter_cmp_sdk`](ezoic_flutter_cmp_sdk/), which this package depends
 on; apps that only need the CMP can use that package alone.
@@ -24,7 +24,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.22.3
+      ref: v1.24.0
 ```
 
 This also brings in `ezoic_flutter_cmp_sdk` from the same tag; don't add it to
@@ -52,14 +52,14 @@ platform :ios, '15.0'
 
 With CocoaPods the plugin no longer uses the `EzoicAdsSDK` pod from CocoaPods
 trunk (which stopped at 1.19.1). `pod install` downloads the native SDK
-(`EzoicAdsSDKBinary.xcframework`, and `EzoicCmpSDKBinary.xcframework` through
-`ezoic_flutter_cmp_sdk`) from the
+(`EzoicAdsSDKBinary.xcframework`, and `EzoicCmpSDKBinary.xcframework` and
+`EzoicConsentCoreBinary.xcframework` through `ezoic_flutter_cmp_sdk`) from the
 [ezoic-swift-sdk-dist release](https://github.com/ezoic/ezoic-swift-sdk-dist/releases)
 for the pinned version and checks each file's SHA-256, so the first
 `pod install` needs network access to GitHub. It also installs the
 `PrebidMobile`, `Google-Mobile-Ads-SDK` and `AmazonPublisherServicesSDK` pods
 the native SDK links. CocoaPods builds get exactly the pinned native version;
-Swift Package Manager resolves 1.23.2 or a later 1.x release.
+Swift Package Manager resolves 1.24.0 or a later 1.x release.
 
 The native SDK and Google Mobile Ads ship as static binaries, so the plugin
 must link statically; its podspec declares `static_framework = true`, so this
@@ -262,6 +262,43 @@ await EzoicAds.initialize(const EzoicConfiguration(
 ));
 ```
 
+**Android: remove the CMP from the app (optional).** With your own CMP you
+can also leave the built-in CMP's code out of the APK. Exclude the native
+`ezoic-cmp-sdk` artifact in your app's `android/app/build.gradle.kts`:
+
+```kotlin
+configurations.all {
+    exclude(group = "com.ezoic.sdk", module = "ezoic-cmp-sdk")
+}
+```
+
+or, in `android/app/build.gradle`:
+
+```groovy
+configurations.all {
+    exclude group: 'com.ezoic.sdk', module: 'ezoic-cmp-sdk'
+}
+```
+
+Keep `cmpEnabled: false` as well. Without the CMP the SDK behaves exactly as
+with `cmpEnabled: false` (consent methods return the same outcomes, ads are
+never gated). If `cmpEnabled` is still `true`, `initialize` logs a warning
+(with `debugEnabled`) that the CMP is not included. R8 release builds need no extra rules. Don't call `EzoicCmp` from
+[`ezoic_flutter_cmp_sdk`](#standalone-cmp) in such an app: that is not
+supported, and its calls fail with a `PlatformException`.
+
+**iOS: the CMP stays in the app, turned off.** On iOS the built-in CMP is
+always linked (with Swift Package Manager and with CocoaPods); with
+`cmpEnabled: false` it never shows anything or writes consent keys.
+
+`EzoicAds.isBuiltInCmpIncluded()` tells "removed" apart from "disabled":
+`false` when the Android app excluded `ezoic-cmp-sdk`, `true` otherwise
+(always on iOS).
+
+```dart
+final included = await EzoicAds.isBuiltInCmpIncluded();
+```
+
 ### Manual consent
 
 You can also set consent programmatically. Manual consent and the built-in CMP
@@ -311,12 +348,12 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.22.3
+      ref: v1.24.0
 dependency_overrides:
   ezoic_flutter_cmp_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.22.3
+      ref: v1.24.0
       path: ezoic_flutter_cmp_sdk
 ```
 
@@ -425,6 +462,7 @@ try {
 - `setAppContent({String? language, String? genre})` → `Future<void>`
 - `presentConsentIfRequired()`, `presentConsentSettings()` → `Future<EzoicConsentOutcome>`
 - `isConsentRequired()`, `isPrivacyOptionsRequired()` → `Future<bool?>`
+- `isBuiltInCmpIncluded()` → `Future<bool>` ([Using your own CMP](#using-your-own-cmp))
 - `resetConsent()` → `Future<void>`
 
 Types: `EzoicConfiguration`, `EzoicConsentOutcome` (`NotRequired`,
@@ -615,20 +653,20 @@ Both packages ship from one annotated `vX.Y.Z` git tag at the same version
 move a published tag: cut a new version instead. The native Android and iOS
 SDKs are versioned separately, so below `A.B.C` is the native Android version
 and `I.J.K` the native iOS version; neither has to equal the package version
-`X.Y.Z` (1.22.3 wraps Android 1.22.3 and iOS 1.23.2). Release in this order:
+`X.Y.Z` (1.22.3 wrapped Android 1.22.3 and iOS 1.23.2). Release in this order:
 
 1. **Native releases are published.** Both are needed:
-   - Maven Central has `com.ezoic.sdk:ezoic-ads-sdk:A.B.C` and
-     `com.ezoic.sdk:ezoic-cmp-sdk:A.B.C`.
+   - Maven Central has `com.ezoic.sdk:ezoic-ads-sdk:A.B.C`,
+     `com.ezoic.sdk:ezoic-cmp-sdk:A.B.C` and
+     `com.ezoic.sdk:ezoic-consent-core:A.B.C`.
    - [ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist/releases)
-     has the `I.J.K` tag with all four zips:
-     `EzoicAdsSDK-I.J.K.xcframework.zip`,
-     `EzoicAdsSDK-I.J.K-cocoapods.xcframework.zip`,
-     `EzoicCmpSDK-I.J.K.xcframework.zip` and
-     `EzoicCmpSDK-I.J.K-cocoapods.xcframework.zip`.
+     has the `I.J.K` tag with all six zips: `EzoicAdsSDK-`, `EzoicCmpSDK-`
+     and `EzoicConsentCore-I.J.K.xcframework.zip`, each also as
+     `…-I.J.K-cocoapods.xcframework.zip`.
 2. **Pin the iOS frameworks:** run `tool/pin_ios_sdk.sh I.J.K`. It writes the
-   version and SHA-256 of both `-cocoapods` zips into both `pubspec.yaml`
-   files. If the native release changed its Prebid, Google Mobile Ads or Amazon
+   version and the SHA-256 of each `-cocoapods` zip into the `pubspec.yaml`
+   that vendors it (`ezoic.ios_sdk.sha256.<product>`: `EzoicAdsSDK` in this
+   package, `EzoicConsentCore` and `EzoicCmpSDK` in `ezoic_flutter_cmp_sdk`). If the native release changed its Prebid, Google Mobile Ads or Amazon
    versions, update `ezoic.ios_sdk.pod_dependencies` in `pubspec.yaml` to match
    its `Package.swift`.
 3. **Commit** the pins, together with the version bumps:
