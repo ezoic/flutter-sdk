@@ -52,6 +52,19 @@ class EzoicFlutterCmpSdkPlugin : FlutterPlugin, ActivityAware, MethodChannel.Met
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    try {
+      handle(call, result)
+    } catch (e: NoClassDefFoundError) {
+      // The app excluded the native CMP (ezoic-cmp-sdk) but calls EzoicCmp.
+      result.error(
+        "EzoicCmp",
+        "The Ezoic CMP is not in this app: its ezoic-cmp-sdk dependency is excluded.",
+        null
+      )
+    }
+  }
+
+  private fun handle(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
       "initialize" -> {
         val domain = call.argument<String>("domain")
