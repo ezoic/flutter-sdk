@@ -1,7 +1,7 @@
 # Sourced by the tool/ scripts. Reads and writes the `ezoic: ios_sdk:` block
 # of a pubspec.yaml (two-space indents, as committed).
 
-# pin_get <pubspec> <version|sha256>
+# pin_get <pubspec> version
 pin_get() {
   awk -v key="$2" '
     /^[^ #]/ { in_ezoic = ($0 ~ /^ezoic:/); in_sdk = 0 }
@@ -11,7 +11,7 @@ pin_get() {
   ' "$1"
 }
 
-# pin_set <pubspec> <version|sha256> <value>
+# pin_set <pubspec> version <value>
 pin_set() {
   local tmp
   tmp=$(mktemp)
@@ -23,6 +23,35 @@ pin_set() {
     { print }
     END { if (!done) exit 1 }
   ' "$1" > "$tmp" || { rm -f "$tmp"; echo "no ezoic.ios_sdk.$2 in $1" >&2; return 1; }
+  mv "$tmp" "$1"
+}
+
+# sha_get <pubspec> <product>: ezoic.ios_sdk.sha256.<product>
+sha_get() {
+  awk -v product="$2" '
+    /^[^ #]/ { in_ezoic = ($0 ~ /^ezoic:/); in_sdk = 0; in_sha = 0 }
+    in_ezoic && /^  ios_sdk:/ { in_sdk = 1; next }
+    in_sdk && /^  [^ ]/ { in_sdk = 0 }
+    in_sdk && /^    sha256:/ { in_sha = 1; next }
+    in_sha && /^    [^ ]/ { in_sha = 0 }
+    in_sha && $1 == product ":" { print $2; exit }
+  ' "$1"
+}
+
+# sha_set <pubspec> <product> <sha256>: the product's entry must exist.
+sha_set() {
+  local tmp
+  tmp=$(mktemp)
+  awk -v product="$2" -v value="$3" '
+    /^[^ #]/ { in_ezoic = ($0 ~ /^ezoic:/); in_sdk = 0; in_sha = 0 }
+    in_ezoic && /^  ios_sdk:/ { in_sdk = 1; print; next }
+    in_sdk && /^  [^ ]/ { in_sdk = 0 }
+    in_sdk && /^    sha256:/ { in_sha = 1; print; next }
+    in_sha && /^    [^ ]/ { in_sha = 0 }
+    in_sha && $1 == product ":" { print "      " product ": " value; done = 1; next }
+    { print }
+    END { if (!done) exit 1 }
+  ' "$1" > "$tmp" || { rm -f "$tmp"; echo "no ezoic.ios_sdk.sha256.$2 in $1" >&2; return 1; }
   mv "$tmp" "$1"
 }
 
@@ -45,8 +74,13 @@ pod_get() {
 # pubspec.yaml), each checked against ezoic-swift-sdk-dist's Package.swift.
 IOS_SDK_PODS=(PrebidMobile Google-Mobile-Ads-SDK AmazonPublisherServicesSDK)
 
-# The packages and the release asset each one vendors.
-IOS_SDK_PACKAGES=("pubspec.yaml EzoicAdsSDK" "ezoic_flutter_cmp_sdk/pubspec.yaml EzoicCmpSDK")
+# The packages and the release assets each one vendors (one entry per asset).
+# The CMP package vendors the consent core that both binaries import.
+IOS_SDK_PACKAGES=(
+  "pubspec.yaml EzoicAdsSDK"
+  "ezoic_flutter_cmp_sdk/pubspec.yaml EzoicConsentCore"
+  "ezoic_flutter_cmp_sdk/pubspec.yaml EzoicCmpSDK"
+)
 IOS_SDK_RELEASES=https://github.com/ezoic/ezoic-swift-sdk-dist/releases/download
 
 # ios_sdk_url <product> <version>

@@ -7,6 +7,7 @@ load File.join(__dir__, 'ezoic_ios_sdk.rb')
 
 pubspec = YAML.load_file(File.join(__dir__, '..', 'pubspec.yaml'))
 # Downloaded and SHA-256-checked at `pod install` (pin: pubspec.yaml ezoic.ios_sdk).
+core_framework = EzoicIosSdk.fetch(__dir__, 'EzoicConsentCore', 'EzoicConsentCoreBinary')
 cmp_framework = EzoicIosSdk.fetch(__dir__, 'EzoicCmpSDK', 'EzoicCmpSDKBinary')
 
 Pod::Spec.new do |s|
@@ -15,9 +16,10 @@ Pod::Spec.new do |s|
   s.summary          = 'Ezoic CMP for Flutter (IAB TCF in GDPR regions, US-state privacy notice and choice).'
   s.description      = <<-DESC
 Flutter plugin wrapping the native Ezoic CMP. CocoaPods builds vendor
-`EzoicCmpSDKBinary.xcframework` from the ezoic-swift-sdk-dist GitHub release.
-This pod is the only one that vendors it: ezoic_flutter_sdk depends on it
-rather than vendoring a second copy.
+`EzoicCmpSDKBinary.xcframework` and the consent core it imports,
+`EzoicConsentCoreBinary.xcframework`, from the ezoic-swift-sdk-dist GitHub
+release. This pod is the only one that vendors them: ezoic_flutter_sdk (whose
+ads binary imports the core) depends on it rather than vendoring second copies.
                        DESC
   s.homepage         = 'https://github.com/ezoic/flutter-sdk'
   s.license          = { :type => 'Proprietary', :file => '../LICENSE' }
@@ -25,7 +27,7 @@ rather than vendoring a second copy.
   s.source           = { :path => '.' }
   s.source_files = 'ezoic_flutter_cmp_sdk/Sources/ezoic_flutter_cmp_sdk/**/*.swift'
   s.dependency 'Flutter'
-  s.vendored_frameworks = cmp_framework
+  s.vendored_frameworks = [core_framework, cmp_framework]
   s.platform = :ios, '15.0'
   s.static_framework = true
 

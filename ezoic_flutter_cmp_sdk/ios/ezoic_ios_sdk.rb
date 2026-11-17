@@ -1,7 +1,8 @@
 # Downloads a native Ezoic XCFramework (the `-cocoapods` build) from the
 # ezoic-swift-sdk-dist GitHub release, checks its SHA-256 and extracts it to
-# ios/Frameworks, where the podspec vendors it from. The version and SHA-256
-# are pinned in the package's pubspec.yaml under `ezoic: ios_sdk:`.
+# ios/Frameworks, where the podspec vendors it from. The version and each
+# product's SHA-256 are pinned in the package's pubspec.yaml under
+# `ezoic: ios_sdk:` (`version:`, and `sha256:` keyed by product).
 #
 # Development override: EZOIC_IOS_SDK_LOCAL_DIR=<dir> takes
 # <dir>/<product>-<version>-cocoapods.xcframework.zip instead of downloading.
@@ -29,7 +30,7 @@ unless defined?(EzoicIosSdk)
       package = pubspec['name']
       pin = pubspec.dig('ezoic', 'ios_sdk') || {}
       version = pin['version'].to_s
-      pinned_sha = pin['sha256'].to_s
+      pinned_sha = (pin['sha256'].is_a?(Hash) ? pin['sha256'][product] : nil).to_s
       zip_name = "#{product}-#{version}-cocoapods.xcframework.zip"
       frameworks_dir = File.join(ios_dir, 'Frameworks')
       framework_dir = File.join(frameworks_dir, "#{module_name}.xcframework")
@@ -45,7 +46,7 @@ unless defined?(EzoicIosSdk)
       if local_dir.empty?
         unless pinned_sha.match?(/\A[0-9a-f]{64}\z/)
           fail_with.call(
-            "pubspec.yaml ezoic.ios_sdk.sha256 is #{pinned_sha.inspect}, not a 64-character " \
+            "pubspec.yaml ezoic.ios_sdk.sha256.#{product} is #{pinned_sha.inspect}, not a 64-character " \
             "hex SHA-256 of #{zip_name}. Use a released version of this package"
           )
         end

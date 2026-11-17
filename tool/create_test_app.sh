@@ -2,7 +2,7 @@
 # Creates a throwaway Flutter app that depends on this repo's packages by path,
 # for build checks in CI and locally.
 #
-#   tool/create_test_app.sh <ads|cmp|both> <dir> [--spm|--cocoapods]
+#   tool/create_test_app.sh <ads|cmp|both> <dir> [--spm|--cocoapods] [--without-cmp]
 #
 #   ads   ezoic_flutter_sdk (which brings ezoic_flutter_cmp_sdk with it)
 #   cmp   ezoic_flutter_cmp_sdk alone
@@ -10,15 +10,32 @@
 #
 # The iOS package manager is set in the app's pubspec (default --spm), so the
 # machine's `flutter config` is left alone.
+#
+# --without-cmp (ads only) adds the README's "Using your own CMP" step to the
+# app's android/app/build.gradle.kts: it excludes the native ezoic-cmp-sdk
+# artifact, so the built-in CMP is not in the Android app. iOS is unchanged
+# (the CMP stays linked there).
 set -euo pipefail
 
-usage() { echo "usage: $0 <ads|cmp|both> <dir> [--spm|--cocoapods]" >&2; exit 64; }
+usage() { echo "usage: $0 <ads|cmp|both> <dir> [--spm|--cocoapods] [--without-cmp]" >&2; exit 64; }
 [ $# -ge 2 ] || usage
 case_name=$1
 dir=$2
-pm=${3:---spm}
+shift 2
+spm=true
+without_cmp=false
+for arg in "$@"; do
+  case "$arg" in
+    --spm) spm=true ;;
+    --cocoapods) spm=false ;;
+    --without-cmp) without_cmp=true ;;
+    *) usage ;;
+  esac
+done
 case "$case_name" in ads|cmp|both) ;; *) usage ;; esac
-case "$pm" in --spm) spm=true ;; --cocoapods) spm=false ;; *) usage ;; esac
+if $without_cmp && [ "$case_name" != ads ]; then
+  echo "--without-cmp needs the ads case" >&2; exit 64
+fi
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 [ ! -e "$dir" ] || { echo "$dir already exists" >&2; exit 1; }
@@ -54,6 +71,16 @@ if [ "$case_name" != cmp ]; then
     android/app/src/main/AndroidManifest.xml
 fi
 
+if $without_cmp; then
+  cat >> android/app/build.gradle.kts <<'KTS'
+
+// Leaves the built-in Ezoic CMP out of the app (README, "Using your own CMP").
+configurations.all {
+    exclude(group = "com.ezoic.sdk", module = "ezoic-cmp-sdk")
+}
+KTS
+fi
+
 ads_import="import 'package:ezoic_flutter_sdk/ezoic_flutter_sdk.dart';"
 cmp_import="import 'package:ezoic_flutter_cmp_sdk/ezoic_flutter_cmp_sdk.dart';"
 case "$case_name" in
@@ -63,9 +90,11 @@ case "$case_name" in
 $cmp_import" ;;
 esac
 
-ads_init="  await EzoicAds.setAppContent(language: 'en', genre: 'News');
+ads_init="  debugPrint('EzoicAds.isBuiltInCmpIncluded: \${await EzoicAds.isBuiltInCmpIncluded()}');
+  await EzoicAds.setAppContent(language: 'en', genre: 'News');
   await EzoicAds.initialize(
-      const EzoicConfiguration(domain: 'example.com', appPaid: false));"
+      const EzoicConfiguration(domain: 'example.com', appPaid: false));
+  debugPrint('EzoicAds initialized');"
 cmp_init="  await EzoicCmp.initialize('example.com');"
 case "$case_name" in
   ads) init=$ads_init; entry=EzoicAds ;;
@@ -115,4 +144,4 @@ $banner
   }
 }
 DART
-echo "Created $case_name app in $dir (iOS Swift Package Manager: $spm)"
+echo "Created $case_name app in $dir (iOS Swift Package Manager: $spm, Android without the CMP: $without_cmp)"

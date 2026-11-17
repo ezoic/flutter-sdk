@@ -5,6 +5,19 @@ import EzoicAdsSDKBinary
 #else
 import EzoicAdsSDK
 #endif
+// CocoaPods builds vendor the `-cocoapods` frameworks, where nothing links
+// the built-in CMP for us (Swift Package Manager's `EzoicAdsSDK` product
+// does): the ads binary finds the CMP at runtime by its Objective-C class
+// name and never references it, so a static link would leave it out and
+// `EzoicAds.isBuiltInCmpIncluded` would be false. Referencing the provider
+// class here, in the plugin class's file, makes the linker load the CMP.
+// EzoicCmpSDKBinary comes from the ezoic_flutter_cmp_sdk pod.
+#if canImport(EzoicCmpSDKBinary)
+@_spi(EzoicInternal) import EzoicCmpSDKBinary
+
+/// Not API: referenced only to link the built-in CMP.
+public let _ezoicBuiltInCmpProviderClass: AnyClass = BuiltInCmpProvider.self
+#endif
 
 public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
   private var messenger: FlutterBinaryMessenger?
@@ -136,6 +149,8 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
       result(EzoicAds.shared.isConsentRequired)
     case "isPrivacyOptionsRequired":
       result(EzoicAds.shared.isPrivacyOptionsRequired)
+    case "isBuiltInCmpIncluded":
+      result(EzoicAds.isBuiltInCmpIncluded)
     case "setAppContent":
       let args = call.arguments as? [String: Any]
       EzoicAds.shared.setAppContent(language: args?["language"] as? String, genre: args?["genre"] as? String)
@@ -237,8 +252,9 @@ public class EzoicFlutterSdkPlugin: NSObject, FlutterPlugin {
     case .alreadyPresenting:
       return ["type": "alreadyPresenting"]
     case .failed(let error):
-      // An `Error` from native 1.22.0: `EzoicError` through `EzoicAds`; it and
-      // `CmpError` conform to `EzoicErrorCode` with the same codes.
+      // An `EzoicError` through `EzoicAds`. `EzoicErrorCode` (EzoicConsentCore,
+      // re-exported by the ads module) carries the code; `CmpError` conforms
+      // to it with the same codes.
       return ["type": "failed", "code": (error as? EzoicErrorCode)?.code ?? -1, "message": error.localizedDescription]
     @unknown default:
       return unrecognizedOutcome

@@ -105,6 +105,19 @@ void main() {
       expect(calls.map((c) => c.method).toSet(), {'isPrivacyOptionsRequired'});
     });
 
+    test('isBuiltInCmpIncluded passes true and false through', () async {
+      for (final value in [true, false]) {
+        mockMain((_) => value);
+        expect(await EzoicAds.isBuiltInCmpIncluded(), value);
+      }
+      expect(calls.map((c) => c.method).toSet(), {'isBuiltInCmpIncluded'});
+    });
+
+    test('isBuiltInCmpIncluded is false when native returns null', () async {
+      mockMain((_) => null);
+      expect(await EzoicAds.isBuiltInCmpIncluded(), isFalse);
+    });
+
     test('resetConsent invokes the native method', () async {
       mockMain((_) => null);
       await EzoicAds.resetConsent();

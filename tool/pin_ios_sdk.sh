@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Pins the vendored iOS XCFrameworks for CocoaPods builds to a released native
-# version: downloads EzoicAdsSDK-<v>-cocoapods.xcframework.zip and
+# version: downloads EzoicAdsSDK-, EzoicConsentCore- and
 # EzoicCmpSDK-<v>-cocoapods.xcframework.zip from the ezoic-swift-sdk-dist
-# GitHub release and writes the version and SHA-256 into each package's
-# pubspec.yaml (`ezoic: ios_sdk:`). Run it once the release is published.
+# GitHub release and writes the version and each SHA-256 into the package's
+# pubspec.yaml that vendors it (`ezoic: ios_sdk:`). Run it once the release is
+# published.
 #
 #   tool/pin_ios_sdk.sh 1.22.0
 set -euo pipefail
@@ -17,6 +18,6 @@ for entry in "${IOS_SDK_PACKAGES[@]}"; do
   url=$(ios_sdk_url "$product" "$version")
   sum=$(sha256_of_url "$url")
   pin_set "$pubspec" version "$version"
-  pin_set "$pubspec" sha256 "$sum"
+  sha_set "$pubspec" "$product" "$sum"
   echo "$pubspec: $product $version $sum"
 done

@@ -182,6 +182,17 @@ class EzoicAds {
     return _channel.invokeMethod<bool>('isPrivacyOptionsRequired');
   }
 
+  /// Whether the built-in Ezoic CMP is in this app.
+  ///
+  /// `false` on Android when the app excluded the `ezoic-cmp-sdk` artifact
+  /// (see the README, "Using your own CMP"); the SDK then behaves as with
+  /// [EzoicConfiguration.cmpEnabled] `false`. Always `true` on iOS, where the
+  /// CMP stays in the app (turn it off with `cmpEnabled: false`). Tells
+  /// "removed" apart from "disabled"; safe to call before [initialize].
+  static Future<bool> isBuiltInCmpIncluded() async {
+    return await _channel.invokeMethod<bool>('isBuiltInCmpIncluded') ?? false;
+  }
+
   /// Deletes the decision stored by the built-in CMP so the dialog is shown
   /// again (ads re-gate until the user decides). The US-state choice is
   /// forgotten too, and the US notice shows again at the next launch. Keys
