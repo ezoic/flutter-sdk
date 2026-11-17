@@ -1,4 +1,12 @@
-## 1.22.0 (unreleased)
+## 1.22.3
+
+* Wraps native Ezoic Ads SDK 1.22.3 on Android (`com.ezoic.sdk:ezoic-ads-sdk:1.22.3`) and 1.23.2 on iOS (CocoaPods builds get exactly 1.23.2; Swift Package Manager resolves `EzoicAdsSDK` 1.23.2+). The native Android and iOS SDKs are now versioned separately. There is no 1.22.1 or 1.22.2 of this package: this release contains the native changes since 1.22.0. No Dart API changes.
+* Interstitials: an interstitial that Google renders and that is still on screen 20 seconds after it was shown is closed by the native SDK, and `onDismissed` fires as usual. Google decides when its close button appears, and a few video ads withheld it for minutes. Only time the ad is in front counts: time behind a store page or a browser, or with the app in the background, does not. Rewarded ads are never closed this way. Nothing to change in your app.
+* Android: a banner or outstream ad won by a Prebid (header bidding) line item is shown at its real size. Before, it could shrink to about 1x1 right after it loaded, so the ad counted as loaded but was not visible.
+* iOS: the native SDK adds `EzoicAnchorAd` (a sticky bottom banner). This package does not expose it yet. Banners no longer take slot 20 (or 40, 60, …), which Ezoic serves as the bottom anchor; the 20th banner on a screen gets slot 21.
+* The native fix for banners loaded without a size (Android 1.22.2, iOS 1.23.1) does not change this package: `EzoicBannerView` always requests its `size`.
+
+## 1.22.0
 
 * Wraps native Ezoic Ads SDK 1.22.0 on iOS and Android (`com.ezoic.sdk:ezoic-ads-sdk:1.22.0`; Swift Package Manager resolves `EzoicAdsSDK` 1.22.0+).
 * iOS CocoaPods builds no longer use the frozen `EzoicAdsSDK` trunk pod. `pod install` downloads the native SDK's XCFrameworks from the [ezoic-swift-sdk-dist release](https://github.com/ezoic/ezoic-swift-sdk-dist/releases), checks their SHA-256, and installs the `PrebidMobile`, `Google-Mobile-Ads-SDK` and `AmazonPublisherServicesSDK` pods they link. CocoaPods builds therefore get the current native SDK again (they were on 1.19.1), and the first `pod install` needs network access to GitHub.
