@@ -17,8 +17,8 @@ these keys from `UserDefaults` on iOS and the default `SharedPreferences` on
 Android. Whether GDPR applies, and whether the dialog is on, come from your
 Ezoic settings for the domain you pass to `initialize`.
 
-It wraps the native CMP: `com.ezoic.sdk:ezoic-cmp-sdk` 1.24.0 on Android and
-`EzoicCmpSDK` 1.24.x from [ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist)
+It wraps the native CMP: `com.ezoic.sdk:ezoic-cmp-sdk` 1.25.0 on Android and
+`EzoicCmpSDK` 1.25.x from [ezoic-swift-sdk-dist](https://github.com/ezoic/ezoic-swift-sdk-dist)
 on iOS.
 
 > **Using Ezoic ads?** Use [`ezoic_flutter_sdk`](../) instead. It already
@@ -45,7 +45,7 @@ dependencies:
   ezoic_flutter_cmp_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.24.0
+      ref: v1.25.0
       path: ezoic_flutter_cmp_sdk
 ```
 

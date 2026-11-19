@@ -1,6 +1,6 @@
 name: ezoic_flutter_cmp_sdk
 description: Ezoic CMP for Flutter (IAB TCF consent in GDPR regions, notice and "Do Not Sell" choice in covered US states) for Ezoic publishers whose app doesn't use Ezoic ads.
-version: 1.24.0
+version: 1.25.0
 homepage: https://github.com/ezoic/flutter-sdk/tree/master/ezoic_flutter_cmp_sdk
 publish_to: none
 
@@ -34,7 +34,7 @@ flutter:
 # Package Manager builds don't use it.
 ezoic:
   ios_sdk:
-    version: 1.24.0
+    version: 1.25.0
     sha256:
-      EzoicConsentCore: bc3472f897cc04c1d4610ef8a62fab4429b78acab17df2bcf9d17ac636319e25
-      EzoicCmpSDK: 480b819d3696814ea873848e542ad87ea5a13bac0d06f0c9095faf0d1421f633
+      EzoicConsentCore: 1413c47723daad0638e869ba0e3d84221eab875ab26f8b3cd959924e7bcd44ff
+      EzoicCmpSDK: 70a1bf5934a468442a7a9eb92457147225dd2e3c7b1f0806351fb828a0a56200

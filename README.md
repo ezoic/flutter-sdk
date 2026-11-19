@@ -2,8 +2,8 @@
 
 Flutter plugin for the Ezoic Ads SDK (Prebid + Google Ad Manager banner,
 native, outstream, instream, interstitial and rewarded ads). It wraps the
-native SDKs: `EzoicAdsSDK` 1.24.x on iOS and `com.ezoic.sdk:ezoic-ads-sdk`
-1.24.0 on Android (the two are versioned separately). The built-in consent
+native SDKs: `EzoicAdsSDK` 1.25.0 or later 1.x on iOS and
+`com.ezoic.sdk:ezoic-ads-sdk` 1.25.0 on Android. The built-in consent
 management (CMP) comes from the sibling package
 [`ezoic_flutter_cmp_sdk`](ezoic_flutter_cmp_sdk/), which this package depends
 on; apps that only need the CMP can use that package alone.
@@ -24,7 +24,7 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.24.0
+      ref: v1.25.0
 ```
 
 This also brings in `ezoic_flutter_cmp_sdk` from the same tag; don't add it to
@@ -59,7 +59,7 @@ for the pinned version and checks each file's SHA-256, so the first
 `pod install` needs network access to GitHub. It also installs the
 `PrebidMobile`, `Google-Mobile-Ads-SDK` and `AmazonPublisherServicesSDK` pods
 the native SDK links. CocoaPods builds get exactly the pinned native version;
-Swift Package Manager resolves 1.24.0 or a later 1.x release.
+Swift Package Manager resolves 1.25.0 or a later 1.x release.
 
 The native SDK and Google Mobile Ads ship as static binaries, so the plugin
 must link statically; its podspec declares `static_framework = true`, so this
@@ -348,12 +348,12 @@ dependencies:
   ezoic_flutter_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.24.0
+      ref: v1.25.0
 dependency_overrides:
   ezoic_flutter_cmp_sdk:
     git:
       url: https://github.com/ezoic/flutter-sdk.git
-      ref: v1.24.0
+      ref: v1.25.0
       path: ezoic_flutter_cmp_sdk
 ```
 

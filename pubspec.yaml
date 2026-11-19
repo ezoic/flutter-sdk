@@ -1,6 +1,6 @@
 name: ezoic_flutter_sdk
 description: Ezoic Ads SDK for Flutter (Prebid + Google Ad Manager banner, native, interstitial and rewarded ads).
-version: 1.24.0
+version: 1.25.0
 homepage: https://github.com/ezoic/flutter-sdk
 publish_to: none
 
@@ -42,9 +42,9 @@ flutter:
 # don't use this block.
 ezoic:
   ios_sdk:
-    version: 1.24.0
+    version: 1.25.0
     sha256:
-      EzoicAdsSDK: b5bcb5ec07ba6b2f1c873b63954c9dfdb697e184581bba0bbc5570d45263a9e5
+      EzoicAdsSDK: 8cec42178f93367d8a8241c006b8478645367eca1731d85684931fcdcb68470b
     pod_dependencies:
       PrebidMobile: "3.4.1"
       Google-Mobile-Ads-SDK: "~> 13.0"
