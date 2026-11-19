@@ -1,3 +1,7 @@
+## 1.25.0
+
+* Wraps native Ezoic Ads SDK 1.25.0 on Android (`com.ezoic.sdk:ezoic-ads-sdk:1.25.0`) and iOS (CocoaPods builds get exactly 1.25.0; Swift Package Manager resolves `EzoicAdsSDK` 1.25.0+). No Dart API changes: `EzoicRewardedAd.load` still takes the ad unit identifier.
+
 ## 1.24.0
 
 * Wraps native Ezoic Ads SDK 1.24.0 on Android (`com.ezoic.sdk:ezoic-ads-sdk:1.24.0`) and iOS (CocoaPods builds get exactly 1.24.0; Swift Package Manager resolves `EzoicAdsSDK` 1.24.0+).
