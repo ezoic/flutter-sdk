@@ -73,7 +73,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.ezoic.sdk:ezoic-cmp-sdk:1.25.0")
+    implementation("com.ezoic.sdk:ezoic-cmp-sdk:1.26.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

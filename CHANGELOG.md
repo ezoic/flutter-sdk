@@ -1,3 +1,8 @@
+## 1.26.0
+
+* Wraps native Ezoic Ads SDK 1.26.0 on Android (`com.ezoic.sdk:ezoic-ads-sdk:1.26.0`) and iOS (CocoaPods builds get exactly 1.26.0; Swift Package Manager resolves `EzoicAdsSDK` 1.26.0+). No Dart API changes.
+* Banner and outstream bid requests now tell bidders where the ad sits on screen (OpenRTB `banner.pos`). The SDK measures the view when it asks for bids: in view is above the fold, off screen (further down a scroll view, another page) is below the fold, and an anchor reports header or footer. A view not yet in a window sends no position. Nothing to change in your app; ads placed in view get the stronger signal.
+
 ## 1.25.0
 
 * Wraps native Ezoic Ads SDK 1.25.0 on Android (`com.ezoic.sdk:ezoic-ads-sdk:1.25.0`) and iOS (CocoaPods builds get exactly 1.25.0; Swift Package Manager resolves `EzoicAdsSDK` 1.25.0+). No Dart API changes: `EzoicRewardedAd.load` still takes the ad unit identifier.
