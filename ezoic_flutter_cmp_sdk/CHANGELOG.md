@@ -1,3 +1,7 @@
+## 1.26.0
+
+* Wraps the native Ezoic CMP 1.26.0 on Android (`com.ezoic.sdk:ezoic-cmp-sdk:1.26.0`) and iOS (`EzoicCmpSDK`; Swift Package Manager resolves 1.26.0+). No CMP API changes: released together with `ezoic_flutter_sdk` 1.26.0.
+
 ## 1.25.0
 
 * Wraps the native Ezoic CMP 1.25.0 on Android (`com.ezoic.sdk:ezoic-cmp-sdk:1.25.0`) and iOS (`EzoicCmpSDK`; Swift Package Manager resolves 1.25.0+). No CMP API changes: released together with `ezoic_flutter_sdk` 1.25.0.
